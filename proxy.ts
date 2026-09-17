@@ -1,5 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { verifyHubSession, SESSION_COOKIE, HubSessionError } from '@krontiva/hub-contract'
+import { establishHubSsoSession } from '@/lib/hub-sso'
 
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
@@ -25,8 +27,30 @@ export async function proxy(request: NextRequest) {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
+  let { data: { user } } = await supabase.auth.getUser()
   const { pathname } = request.nextUrl
+
+  // Hub single sign-on: no local session yet, but Hub's shared cookie is
+  // present — verify it and, if valid, mint a real local session before
+  // the redirect-to-login check below ever runs. See lib/hub-sso.ts.
+  if (!user) {
+    const hubCookie = request.cookies.get(SESSION_COOKIE)?.value
+    if (hubCookie) {
+      try {
+        const claims = await verifyHubSession(hubCookie)
+        const minted = await establishHubSsoSession(claims)
+        if (minted) {
+          await supabase.auth.setSession({
+            access_token: minted.accessToken,
+            refresh_token: minted.refreshToken,
+          })
+          user = (await supabase.auth.getUser()).data.user
+        }
+      } catch (e) {
+        if (!(e instanceof HubSessionError)) console.error('[proxy] hub sso failed', e)
+      }
+    }
+  }
 
   if (!user && !pathname.startsWith('/login')) {
     return NextResponse.redirect(new URL('/login', request.url))
