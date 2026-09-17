@@ -37,11 +37,20 @@ export async function proxy(request: NextRequest) {
   // identity a Hub visit is supposed to grant. Skipped only when the
   // existing local session already matches Hub's claim (by email); once
   // minted, later navigations don't re-mint every time. See lib/hub-sso.ts.
+  //
+  // TEMP DIAGNOSTIC (remove after this is confirmed working in production):
+  // debugInfo is attached to the response as X-Hub-Sso-Debug so it can be
+  // read directly via curl, since Vercel's Logs tab isn't surfacing these
+  // requests at all.
+  let debugInfo = 'no-hub-cookie'
   const hubCookie = request.cookies.get(SESSION_COOKIE)?.value
   if (hubCookie) {
+    debugInfo = 'cookie-present-unverified'
     try {
       const claims = await verifyHubSession(hubCookie)
+      debugInfo = `verified:${claims.email}`
       if (!user || user.email !== claims.email) {
+        debugInfo = 'minting'
         const minted = await establishHubSsoSession(claims)
         if (minted) {
           await supabase.auth.setSession({
@@ -49,19 +58,31 @@ export async function proxy(request: NextRequest) {
             refresh_token: minted.refreshToken,
           })
           user = (await supabase.auth.getUser()).data.user
+          debugInfo = `minted-ok:${user?.email}`
+        } else {
+          debugInfo = 'mint-returned-null'
         }
+      } else {
+        debugInfo = 'skip-already-matches'
       }
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      debugInfo = `error:${msg}`.replace(/[\r\n]+/g, ' ').slice(0, 400)
       if (!(e instanceof HubSessionError)) console.error('[proxy] hub sso failed', e)
     }
   }
 
+  function withDebug(res: NextResponse): NextResponse {
+    res.headers.set('X-Hub-Sso-Debug', debugInfo)
+    return res
+  }
+
   if (!user && !pathname.startsWith('/login')) {
-    return NextResponse.redirect(new URL('/login', request.url))
+    return withDebug(NextResponse.redirect(new URL('/login', request.url)))
   }
 
   if (user && pathname === '/login') {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+    return withDebug(NextResponse.redirect(new URL('/dashboard', request.url)))
   }
 
   if (pathname.startsWith('/admin')) {
@@ -72,11 +93,11 @@ export async function proxy(request: NextRequest) {
       .single()
 
     if (profile?.role !== 'admin') {
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+      return withDebug(NextResponse.redirect(new URL('/dashboard', request.url)))
     }
   }
 
-  return supabaseResponse
+  return withDebug(supabaseResponse)
 }
 
 export const config = {
