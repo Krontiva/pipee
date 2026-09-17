@@ -53,6 +53,10 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // 'api' excluded: API routes authenticate themselves (e.g.
+    // /api/cron/hub-sync's own shared-secret check) rather than via a
+    // browser session cookie, which a server-to-server caller never has —
+    // routing them through this cookie-based redirect first breaks them.
+    '/((?!_next/static|_next/image|favicon.ico|api|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
