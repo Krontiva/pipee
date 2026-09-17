@@ -30,14 +30,18 @@ export async function proxy(request: NextRequest) {
   let { data: { user } } = await supabase.auth.getUser()
   const { pathname } = request.nextUrl
 
-  // Hub single sign-on: no local session yet, but Hub's shared cookie is
-  // present — verify it and, if valid, mint a real local session before
-  // the redirect-to-login check below ever runs. See lib/hub-sso.ts.
-  if (!user) {
-    const hubCookie = request.cookies.get(SESSION_COOKIE)?.value
-    if (hubCookie) {
-      try {
-        const claims = await verifyHubSession(hubCookie)
+  // Hub single sign-on: verify Hub's shared cookie if present, and mint a
+  // real local session for that person before the redirect-to-login check
+  // below ever runs — even if a local session already exists, since that's
+  // very likely their own personal Pipee account, not the Hub-admin
+  // identity a Hub visit is supposed to grant. Skipped only when the
+  // existing local session already matches Hub's claim (by email); once
+  // minted, later navigations don't re-mint every time. See lib/hub-sso.ts.
+  const hubCookie = request.cookies.get(SESSION_COOKIE)?.value
+  if (hubCookie) {
+    try {
+      const claims = await verifyHubSession(hubCookie)
+      if (!user || user.email !== claims.email) {
         const minted = await establishHubSsoSession(claims)
         if (minted) {
           await supabase.auth.setSession({
@@ -46,9 +50,9 @@ export async function proxy(request: NextRequest) {
           })
           user = (await supabase.auth.getUser()).data.user
         }
-      } catch (e) {
-        if (!(e instanceof HubSessionError)) console.error('[proxy] hub sso failed', e)
       }
+    } catch (e) {
+      if (!(e instanceof HubSessionError)) console.error('[proxy] hub sso failed', e)
     }
   }
 
