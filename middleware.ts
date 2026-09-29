@@ -3,13 +3,6 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { verifyHubSession, SESSION_COOKIE, HubSessionError } from '@krontiva/hub-contract'
 import { establishHubSsoSession } from '@/lib/hub-sso'
 
-/**
- * Product-local (never cross-domain) cookie recording which email the
- * current session was minted for via Hub SSO, if any. See the comment at
- * its use below.
- */
-const HUB_MARKER_COOKIE = 'hub_sso_email'
-
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
@@ -43,24 +36,24 @@ export async function middleware(request: NextRequest) {
   // very likely their own personal Pipee account, not the Hub-admin
   // identity a Hub visit is supposed to grant.
   //
-  // But this must never keep re-asserting itself over a session the person
-  // reached by actually signing in on Pipee's own /login: without some way
-  // to tell the two apart, a `krontiva_session` cookie merely left over in
-  // the browser from unrelated Hub testing would silently clobber that
-  // deliberate local login on every single request until the cookie
-  // expired (see the interference bug this fixes). HUB_MARKER_COOKIE is
-  // that signal — it's set only when *this* code mints a session, to the
-  // email it minted for. A local session only gets overridden when the
-  // marker shows it was Hub-minted in the first place and Hub's claim has
-  // since moved to someone else; a session with no marker, or one whose
-  // marker doesn't match the current user, is left alone.
+  // But only when this request is actually the Hub embed loading Pipee in
+  // its <iframe> (app/[slug]/page.tsx in the Hub repo), never for a direct
+  // visit to this domain. `Sec-Fetch-Dest: iframe` is the browser-set
+  // signal that distinguishes the two — cookies alone can't, since
+  // `krontiva_session` is sent on every request to *.krontiva.africa
+  // either way. Without this gate, a `krontiva_session` cookie merely
+  // present in the browser (e.g. from testing hub-dev-test on Hub in
+  // another tab) would silently override a real, deliberate local login on
+  // Pipee's own /login, on every request, until the cookie expired —
+  // that's the interference bug this fixes. Inside the iframe it's the
+  // opposite: Hub's own identity should always win there, matching what
+  // Hub's sidebar shows.
+  const isHubEmbed = request.headers.get('sec-fetch-dest') === 'iframe'
   const hubCookie = request.cookies.get(SESSION_COOKIE)?.value
-  if (hubCookie) {
+  if (hubCookie && isHubEmbed) {
     try {
       const claims = await verifyHubSession(hubCookie)
-      const marker = request.cookies.get(HUB_MARKER_COOKIE)?.value
-      const sessionIsHubOwned = !user || marker === user.email
-      if (sessionIsHubOwned && (!user || user.email !== claims.email)) {
+      if (!user || user.email !== claims.email) {
         const minted = await establishHubSsoSession(claims)
         if (minted) {
           await supabase.auth.setSession({
@@ -68,13 +61,6 @@ export async function middleware(request: NextRequest) {
             refresh_token: minted.refreshToken,
           })
           user = (await supabase.auth.getUser()).data.user
-          supabaseResponse.cookies.set(HUB_MARKER_COOKIE, claims.email, {
-            httpOnly: true,
-            sameSite: 'lax',
-            path: '/',
-            secure: process.env.NODE_ENV === 'production',
-            maxAge: 60 * 60 * 24 * 30,
-          })
         }
       }
     } catch (e) {
