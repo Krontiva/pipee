@@ -1,0 +1,111 @@
+/*
+ * Hub look — aesthetic only.
+ *
+ * Every rule here is scoped to html[data-hub-embed], an attribute that is set
+ * only while Pipee is shown inside the Krontiva Hub frame (see
+ * components/shared/HubEmbedFlag.tsx). Without that attribute none of this
+ * applies, so direct visits and the sign-in screen are unaffected.
+ *
+ * Deliberately NOT wrapped in @layer: unlayered CSS beats Tailwind's layered
+ * utilities, so these overrides win without !important.
+ *
+ * Hub tokens: brand-50 #f0f4ff, 100 #dce6ff, 500 #3b5bdb, 600 #2f4bc4,
+ * 700 #2640a8, 900 #1a2d7a; Inter; page #f8f9fc; text #111827; Tailwind gray.
+ */
+
+/* --- Palette: Pipee's indigo -> Hub brand blue; slate/gray -> Hub gray ---- */
+html[data-hub-embed] {
+  --color-indigo-50: #f0f4ff;
+  --color-indigo-100: #dce6ff;
+  --color-indigo-200: #bac8ff;
+  --color-indigo-300: #91a7ff;
+  --color-indigo-400: #748ffc;
+  --color-indigo-500: #3b5bdb;
+  --color-indigo-600: #3b5bdb;
+  --color-indigo-700: #2f4bc4;
+  --color-indigo-800: #2640a8;
+  --color-indigo-900: #1a2d7a;
+
+  --color-slate-50: #f8f9fc;
+  --color-slate-100: #f3f4f6;
+  --color-slate-200: #e5e7eb;
+  --color-slate-300: #d1d5db;
+  --color-slate-400: #9ca3af;
+  --color-slate-500: #6b7280;
+  --color-slate-600: #4b5563;
+  --color-slate-700: #374151;
+  --color-slate-800: #1f2937;
+  --color-slate-900: #111827;
+
+  --color-gray-50: #f9fafb;
+  --color-gray-100: #f3f4f6;
+  --color-gray-200: #e5e7eb;
+  --color-gray-300: #d1d5db;
+  --color-gray-400: #9ca3af;
+  --color-gray-500: #6b7280;
+  --color-gray-600: #4b5563;
+  --color-gray-700: #374151;
+  --color-gray-800: #1f2937;
+  --color-gray-900: #111827;
+
+  --font-geist-sans: Inter, system-ui, sans-serif;
+
+  /* Pipee's calendar palette (globals.css) — dark by default, light here. */
+  --background: #f8f9fc;
+  --surface: #ffffff;
+  --surface-elevated: #f9fafb;
+  --border: #e5e7eb;
+  --foreground: #111827;
+  --muted: #6b7280;
+  --accent: #3b5bdb;
+  --accent-hover: #2f4bc4;
+}
+
+html[data-hub-embed] body,
+html[data-hub-embed] button,
+html[data-hub-embed] input,
+html[data-hub-embed] select,
+html[data-hub-embed] textarea {
+  font-family: Inter, system-ui, sans-serif;
+}
+
+html[data-hub-embed] body {
+  background: #f8f9fc;
+  color: #111827;
+}
+
+/* --- Sidebar: Hub's nav (px-2 items, gap 2.5, weight only when active) ---- */
+html[data-hub-embed] aside { border-color: #f3f4f6; }
+html[data-hub-embed] aside > div { border-color: #f3f4f6; }
+html[data-hub-embed] aside nav a {
+  gap: 0.625rem;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+  font-weight: 400;
+}
+html[data-hub-embed] aside nav a[class~="bg-indigo-50"] {
+  color: #2640a8;
+  font-weight: 500;
+}
+/* Hub marks the active item with a small dot, not a chevron. */
+html[data-hub-embed] aside nav a[class~="bg-indigo-50"] > svg:last-child:not(:first-child) { display: none; }
+html[data-hub-embed] aside nav a[class~="bg-indigo-50"]:has(> span)::after {
+  content: ""; margin-left: auto; width: 0.375rem; height: 0.375rem;
+  border-radius: 9999px; background-color: #3b5bdb; flex-shrink: 0;
+}
+/* Hub avatar: soft brand-100 disc with a brand-700 initial. */
+html[data-hub-embed] aside .rounded-full.bg-indigo-600 { background-color: #dce6ff; color: #2640a8; }
+html[data-hub-embed] aside .rounded-lg.bg-indigo-600 { background-color: #3b5bdb; color: #fff; }
+
+/* --- Cards: Hub's rounded-2xl / gray-100 border --------------------------- */
+html[data-hub-embed] main div[class~="bg-white"][class~="rounded-xl"],
+html[data-hub-embed] main div[class~="bg-white"][class~="rounded-2xl"] {
+  border-radius: 1rem;
+  border-color: #f3f4f6;
+}
+
+/* --- Calendar (react-big-calendar): hard-coded dark bits ------------------- */
+html[data-hub-embed] .rbc-off-range-bg { background: #f9fafb; }
+html[data-hub-embed] .rbc-today { background: rgba(59, 91, 219, 0.08); }
+html[data-hub-embed] ::-webkit-scrollbar-thumb { background: #d1d5db; }
+html[data-hub-embed] ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
