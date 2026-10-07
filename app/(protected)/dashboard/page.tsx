@@ -7,6 +7,7 @@ import { PipelineMetrics } from '@/components/dashboard/PipelineMetrics'
 import { ConversionChart } from '@/components/dashboard/ConversionChart'
 import { BDOLeaderboard } from '@/components/dashboard/BDOLeaderboard'
 import { StalledDealsAlert } from '@/components/dashboard/StalledDealsAlert'
+import { BlockerReminders } from '@/components/dashboard/BlockerReminders'
 import { TeamActivityFeed } from '@/components/dashboard/TeamActivityFeed'
 
 export default async function DashboardPage() {
@@ -63,6 +64,8 @@ export default async function DashboardPage() {
           </div>
           <ArrowRight size={16} className="text-indigo-400 group-hover:translate-x-0.5 transition-transform shrink-0" />
         </Link>
+
+        <BlockerReminders opportunities={visibleOpps} showOwner={profile.role === 'admin'} />
 
         <PipelineMetrics opportunities={visibleOpps} />
 

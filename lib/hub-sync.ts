@@ -1,6 +1,8 @@
 import { HubClient, partitionWorkItems, type HubWorkItem } from '@krontiva/hub-contract'
 import { supabaseAdmin } from '@/lib/supabase/admin'
-import type { OpportunityStatus } from '@/types'
+import type { OpportunityStatus, BlockerKey } from '@/types'
+import { STAGE_META } from '@/types'
+import { isStalled, activeBlocker } from '@/lib/utils'
 
 // Pipee has no per-item change feed and the pipeline is small, so every run
 // does a full resync rather than maintaining an outbox — the simplification
@@ -38,6 +40,10 @@ interface OpportunityRow {
   disqualification_reason: string | null
   next_action: string | null
   next_action_date: string | null
+  stage_entered_at: string
+  blocker: BlockerKey | null
+  blocker_label: string | null
+  blocker_set_at: string | null
   created_at: string
   updated_at: string
 }
@@ -50,6 +56,12 @@ export interface HubSyncResult {
   delivery: { ok: boolean; status: number; error?: string }
 }
 
+// The moment a deal crossed its stalled threshold (2x the stage target), not when it entered the stage.
+function stalledSince(stage: number, stageEnteredAt: string): string {
+  const days = (STAGE_META[stage]?.targetDays ?? 0) * 2
+  return new Date(new Date(stageEnteredAt).getTime() + days * 86_400_000).toISOString()
+}
+
 export async function syncOpportunitiesToHub(): Promise<HubSyncResult> {
   const secret = process.env.PIPEE_HUB_SECRET
   if (!secret) throw new Error('PIPEE_HUB_SECRET is not set')
@@ -60,7 +72,7 @@ export async function syncOpportunitiesToHub(): Promise<HubSyncResult> {
     supabase
       .from('opportunities')
       .select(
-        'id, title, company_name, sector, website, stage, status, assigned_to, value, currency, disqualification_reason, next_action, next_action_date, created_at, updated_at'
+        'id, title, company_name, sector, website, stage, status, assigned_to, value, currency, disqualification_reason, next_action, next_action_date, stage_entered_at, blocker, blocker_label, blocker_set_at, created_at, updated_at'
       )
       .returns<OpportunityRow[]>(),
     supabase.from('profiles').select('id, name').returns<{ id: string; name: string }[]>(),
@@ -77,7 +89,9 @@ export async function syncOpportunitiesToHub(): Promise<HubSyncResult> {
   const items: HubWorkItem[] = rows
     .filter((r): r is OpportunityRow & { assigned_to: string } => !!r.assigned_to)
     .map(r => {
-      const state = STATE_MAP[r.status]
+      // Nothing stores status 'stalled' — it is derived from time in stage.
+      const stalled = r.status === 'active' && isStalled(r.stage, r.stage_entered_at)
+      const state = stalled ? 'blocked' : STATE_MAP[r.status]
       const stateChangedAt = r.updated_at ?? r.created_at
 
       return {
@@ -104,7 +118,7 @@ export async function syncOpportunitiesToHub(): Promise<HubSyncResult> {
         // Approximation: the opportunity's last update, not necessarily the
         // exact moment it went stalled (a later non-status-changing update
         // would move this forward) — same caveat as RoadMap's hub-sync.
-        blocked_since: state === 'blocked' ? stateChangedAt : null,
+        blocked_since: state === 'blocked' ? (stalled ? stalledSince(r.stage, r.stage_entered_at) : stateChangedAt) : null,
         due_at: r.next_action_date,
         closed_at: state === 'done' ? stateChangedAt : null,
         meta: {
@@ -117,6 +131,7 @@ export async function syncOpportunitiesToHub(): Promise<HubSyncResult> {
           pipee_status: r.status,
           disqualification_reason: r.disqualification_reason,
           next_action: r.next_action,
+          blocker: activeBlocker(r)?.label ?? null,
         },
       }
     })

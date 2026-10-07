@@ -6,6 +6,7 @@ import { ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react'
 import { cn, formatCurrency, formatDate, isStalled } from '@/lib/utils'
 import { StageTag } from '@/components/shared/StageTag'
 import { StatusBadge } from '@/components/shared/StatusBadge'
+import { BlockerPill } from '@/components/shared/BlockerPill'
 import type { Opportunity } from '@/types'
 
 type SortKey = 'company_name' | 'stage' | 'value' | 'next_action_date' | 'status'
@@ -95,7 +96,10 @@ export function ListView({ opportunities }: ListViewProps) {
                   {formatCurrency(opp.value, opp.currency)}
                 </td>
                 <td className="px-4 py-3">
-                  <StatusBadge status={opp.status} />
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <StatusBadge status={opp.status} />
+                    {stalled && <BlockerPill opp={opp} />}
+                  </div>
                 </td>
                 <td className="px-4 py-3 text-xs text-gray-500">
                   <div>{opp.next_action ?? '—'}</div>

@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { signPayload, SIGNATURE_HEADERS, LIMITS } from '@krontiva/hub-contract'
 import { supabaseAdmin } from '@/lib/supabase/admin'
-import { daysSinceStageEntry, isOverdue, isStalled } from '@/lib/utils'
+import { activeBlocker, daysSinceStageEntry, isOverdue, isStalled } from '@/lib/utils'
+import type { BlockerKey } from '@/types'
 import { STAGE_META } from '@/types'
 
 // Krontiva Hub → Pipee: the pipeline per rep, in Pipee's own terms — so Hub
@@ -42,6 +43,9 @@ interface OppRow {
   assigned_to: string | null
   next_action: string | null
   next_action_date: string | null
+  blocker: BlockerKey | null
+  blocker_label: string | null
+  blocker_set_at: string | null
 }
 
 interface ProfileRow {
@@ -83,7 +87,7 @@ export async function POST(req: Request) {
   const [{ data: opps, error: oppError }, { data: profiles, error: profileError }] = await Promise.all([
     supabase
       .from('opportunities')
-      .select('id, title, company_name, stage, stage_entered_at, status, assigned_to, next_action, next_action_date')
+      .select('id, title, company_name, stage, stage_entered_at, status, assigned_to, next_action, next_action_date, blocker, blocker_label, blocker_set_at')
       .returns<OppRow[]>(),
     supabase.from('profiles').select('id, name, role, is_active').returns<ProfileRow[]>(),
   ])
@@ -117,6 +121,7 @@ export async function POST(req: Request) {
         stageName: meta?.name ?? null,
         daysInStage: daysSinceStageEntry(o.stage_entered_at),
         stalledAfterDays: meta ? meta.targetDays * 2 : null,
+        blocker: activeBlocker(o)?.label ?? null,
         url: `${PIPEE_URL}/opportunities/${o.id}`,
       })
     }

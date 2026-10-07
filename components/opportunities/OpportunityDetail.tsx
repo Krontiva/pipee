@@ -6,11 +6,12 @@ import {
   AlertTriangle, X, Building2, DollarSign, Calendar, Globe,
   Bell, ChevronRight, Lock, FileText, LayoutGrid, Pencil, Check, Loader2,
 } from 'lucide-react'
-import { cn, formatCurrency, formatDate, isStalled, isOverdue, daysSinceStageEntry } from '@/lib/utils'
+import { cn, formatCurrency, formatDate, isStalled, isOverdue, daysSinceStageEntry, activeBlocker } from '@/lib/utils'
 import { updateNextAction, clearStalled } from '@/lib/actions/opportunities'
 import { STAGE_META, SUB_STAGES } from '@/types'
 import { StageTag } from '@/components/shared/StageTag'
 import { StatusBadge } from '@/components/shared/StatusBadge'
+import { BlockerSection } from './BlockerSection'
 import { DealOutcomeBar } from './DealOutcomeBar'
 import { EditDealButton } from './EditDealButton'
 import { StageProgress } from './StageProgress'
@@ -44,7 +45,14 @@ function getNotifications(opp: Opportunity, meddic?: MEDDICScore | null) {
   if (s === 3) notes.push({ type: 'info', message: 'File a Discovery Brief before advancing to Stage 4.' })
   if (s === 4 && !opp.value) notes.push({ type: 'warning', message: 'Deal value is not set — update before drafting the proposal.' })
   if (s === 5) notes.push({ type: 'info', message: 'Track negotiation progress and update the Proposal Tracker with revisions.' })
-  if (opp.status === 'stalled') notes.push({ type: 'warning', message: 'Deal is stalled — log a new activity or schedule a follow-up.' })
+  if (isStalled(opp.stage, opp.stage_entered_at)) {
+    notes.push({
+      type: 'warning',
+      message: activeBlocker(opp)
+        ? `Deal is stalled (${activeBlocker(opp)!.label}) — log a new activity or schedule a follow-up.`
+        : 'Deal is stalled — tell us what is blocking it, then log an activity or schedule a follow-up.',
+    })
+  }
   return notes
 }
 
@@ -327,6 +335,8 @@ export function OpportunityDetail({
               <p className="text-gray-400 text-xs mt-1">{doneCount}/{subStages.length} checklist items</p>
             </button>
           </div>
+
+          {stalled && opp.status === 'active' && <BlockerSection opp={opp} />}
 
           {/* ── TABS ── */}
           <div className="border-b border-slate-200">

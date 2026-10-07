@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
-import { STAGE_META, CURRENCIES } from '@/types'
+import { STAGE_META, CURRENCIES, BLOCKER_OPTIONS } from '@/types'
+import type { Opportunity, BlockerKey } from '@/types'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -32,6 +33,21 @@ export function isStalled(stage: number, stageEnteredAt: string): boolean {
   const targetMs = meta.targetDays * 24 * 60 * 60 * 1000 * 2
   const elapsed = Date.now() - new Date(stageEnteredAt).getTime()
   return elapsed > targetMs
+}
+
+type BlockerFields = Pick<Opportunity, 'stage' | 'stage_entered_at' | 'blocker' | 'blocker_label' | 'blocker_set_at'>
+
+// The blocker for the *current* stalled spell, or null. A blocker set before the
+// deal last entered its stage (moved or cleared since) is stale and ignored.
+export function activeBlocker(opp: BlockerFields): { key: BlockerKey; label: string } | null {
+  if (!opp.blocker || !opp.blocker_set_at) return null
+  if (new Date(opp.blocker_set_at) < new Date(opp.stage_entered_at)) return null
+  const fallback = BLOCKER_OPTIONS.find(b => b.key === opp.blocker)?.label ?? 'Other'
+  return { key: opp.blocker, label: opp.blocker_label || fallback }
+}
+
+export function needsBlocker(opp: BlockerFields & { status: Opportunity['status'] }): boolean {
+  return opp.status === 'active' && isStalled(opp.stage, opp.stage_entered_at) && !activeBlocker(opp)
 }
 
 export function daysSinceStageEntry(stageEnteredAt: string): number {

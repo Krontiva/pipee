@@ -28,6 +28,23 @@ export interface Profile {
   created_at: string
 }
 
+// Why a stalled deal is stalled. `label` is the short pill text shown on cards;
+// 'other' has no fixed label — it's summarised from the rep's own words.
+export type BlockerKey =
+  | 'no_response' | 'no_champion' | 'no_decision_maker' | 'no_budget'
+  | 'competitor' | 'bad_timing' | 'internal_delay' | 'other'
+
+export const BLOCKER_OPTIONS: { key: BlockerKey; name: string; meaning: string; label: string | null }[] = [
+  { key: 'no_response',       name: 'No response',            meaning: 'Contact has gone cold',                    label: 'No response' },
+  { key: 'no_champion',       name: 'No champion',            meaning: 'Nobody internally owns it',                label: 'No champion' },
+  { key: 'no_decision_maker', name: 'No decision-maker',      meaning: "We're talking to the wrong person",        label: 'No decision-maker' },
+  { key: 'no_budget',         name: 'No budget',              meaning: 'Commercial blocker',                       label: 'No budget' },
+  { key: 'competitor',        name: 'Competitor',             meaning: 'Evaluating or chose someone else',         label: 'Competitor' },
+  { key: 'bad_timing',        name: 'Bad timing',             meaning: 'Wants it, but not now',                    label: 'Bad timing' },
+  { key: 'internal_delay',    name: 'Internal delay',         meaning: 'Waiting on our side (proposal, legal, approval)', label: 'Internal delay' },
+  { key: 'other',             name: 'Other',                  meaning: 'Something else — describe it',             label: null },
+]
+
 export interface Opportunity {
   id: string
   title: string
@@ -45,6 +62,10 @@ export interface Opportunity {
   next_action_date: string | null
   calendar_event_type: CalendarEventType
   stage_entered_at: string
+  blocker: BlockerKey | null
+  blocker_note: string | null
+  blocker_label: string | null
+  blocker_set_at: string | null
   notes: string | null
   created_at: string
   updated_at: string

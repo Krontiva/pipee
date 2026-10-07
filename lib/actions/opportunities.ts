@@ -2,8 +2,9 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { STAGE_META, SUB_STAGES, STAGE_DEFAULT_NEXT_ACTION } from '@/types'
-import type { DisqualificationReason } from '@/types'
+import { supabaseAdmin } from '@/lib/supabase/admin'
+import { STAGE_META, SUB_STAGES, STAGE_DEFAULT_NEXT_ACTION, BLOCKER_OPTIONS } from '@/types'
+import type { DisqualificationReason, BlockerKey } from '@/types'
 
 export async function createOpportunity(formData: FormData) {
   const supabase = await createClient()
@@ -320,6 +321,83 @@ export async function clearStalled(opportunityId: string) {
   revalidatePath('/pipeline')
   revalidatePath('/dashboard')
   return { success: true }
+}
+
+// Two-word pill text for a free-typed blocker. Falls back to the first two words
+// if the model is unavailable, so saving never fails because of it.
+async function summariseBlocker(note: string): Promise<string> {
+  const fallback = note.split(/\s+/).slice(0, 2).join(' ')
+  try {
+    let key = process.env.GROQ_API_KEY ?? null
+    if (!key) {
+      // Reps can't read admin_settings under RLS, so use the service client.
+      const { data } = await supabaseAdmin().from('admin_settings').select('value').eq('key', 'groq_api_key').single()
+      key = data?.value ?? null
+    }
+    if (!key) return fallback
+
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+      body: JSON.stringify({
+        model: 'llama-3.1-8b-instant',
+        temperature: 0,
+        max_tokens: 12,
+        messages: [
+          { role: 'system', content: 'Summarise why a sales deal is blocked in exactly two words, Title Case, no punctuation. Reply with the two words only.' },
+          { role: 'user', content: note },
+        ],
+      }),
+    })
+    if (!res.ok) return fallback
+    const out: string = (await res.json()).choices?.[0]?.message?.content ?? ''
+    const words = out.replace(/[^\p{L}\p{N}\s-]/gu, '').trim().split(/\s+/).filter(Boolean)
+    return words.length >= 1 && words.length <= 3 ? words.slice(0, 2).join(' ') : fallback
+  } catch {
+    return fallback
+  }
+}
+
+export async function setBlocker(opportunityId: string, blocker: BlockerKey, note?: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const option = BLOCKER_OPTIONS.find(b => b.key === blocker)
+  if (!option) return { error: 'Unknown blocker' }
+
+  const text = note?.trim() ?? ''
+  if (blocker === 'other' && !text) return { error: 'Please describe the blocker.' }
+
+  const label = option.label ?? await summariseBlocker(text)
+
+  // RLS limits this to the deal's owner or an admin.
+  const { data, error } = await supabase
+    .from('opportunities')
+    .update({
+      blocker,
+      blocker_note: blocker === 'other' ? text : null,
+      blocker_label: label,
+      blocker_set_at: new Date().toISOString(),
+    })
+    .eq('id', opportunityId)
+    .select('id')
+  if (error) return { error: error.message }
+  if (!data?.length) return { error: 'You do not have access to this deal.' }
+
+  await supabase.from('activities').insert({
+    opportunity_id: opportunityId,
+    user_id: user.id,
+    type: 'note',
+    title: `Blocker: ${label}`,
+    description: blocker === 'other' ? text : option.meaning,
+    occurred_at: new Date().toISOString(),
+  })
+
+  revalidatePath(`/opportunities/${opportunityId}`)
+  revalidatePath('/pipeline')
+  revalidatePath('/dashboard')
+  return { success: true, label }
 }
 
 export async function saveMEDDIC(opportunityId: string, data: Record<string, string>) {

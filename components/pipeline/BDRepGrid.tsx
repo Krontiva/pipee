@@ -6,6 +6,7 @@ import { X, TrendingUp, Briefcase, Trophy, AlertTriangle } from 'lucide-react'
 import { cn, formatCurrency, formatDate, isStalled, isOverdue } from '@/lib/utils'
 import { StageTag } from '@/components/shared/StageTag'
 import { StatusBadge } from '@/components/shared/StatusBadge'
+import { BlockerPill } from '@/components/shared/BlockerPill'
 import { initials } from '@/lib/utils'
 import type { Opportunity, Profile } from '@/types'
 
@@ -186,7 +187,10 @@ export function BDRepGrid({ opportunities, profiles }: BDRepGridProps) {
                               }
                             </td>
                             <td className="px-4 py-3">
-                              <StatusBadge status={opp.status} />
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <StatusBadge status={opp.status} />
+                                {stalled && <BlockerPill opp={opp} />}
+                              </div>
                             </td>
                             <td className="px-4 py-3 text-xs">
                               {opp.next_action ? (

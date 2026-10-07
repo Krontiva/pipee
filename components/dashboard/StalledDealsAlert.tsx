@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { AlertTriangle, ArrowRight } from 'lucide-react'
 import { daysSinceStageEntry, formatCurrency } from '@/lib/utils'
 import { STAGE_META } from '@/types'
+import { BlockerPill } from '@/components/shared/BlockerPill'
 import { isStalled } from '@/lib/utils'
 import type { Opportunity } from '@/types'
 
@@ -48,6 +49,7 @@ export function StalledDealsAlert({ opportunities }: { opportunities: Opportunit
                 </p>
               </div>
               <div className="flex items-center gap-3 shrink-0">
+                <BlockerPill opp={opp} />
                 {opp.value && <span className="text-green-600 text-sm font-medium">{formatCurrency(opp.value)}</span>}
                 <ArrowRight size={14} className="text-gray-400 group-hover:text-indigo-600 transition-colors" />
               </div>

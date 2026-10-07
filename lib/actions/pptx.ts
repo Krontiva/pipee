@@ -3,6 +3,7 @@
 import PptxGenJS from 'pptxgenjs'
 import { createClient } from '@/lib/supabase/server'
 import { STAGE_META } from '@/types'
+import { isStalled, activeBlocker } from '@/lib/utils'
 import type { ReportFilters } from './reports'
 
 // ── Brand colours ─────────────────────────────────────────────────────────────
@@ -76,7 +77,10 @@ export async function generatePptx(filters: ReportFilters): Promise<{ base64?: s
   const active     = opportunities.filter(o => o.status === 'active')
   const won        = opportunities.filter(o => o.status === 'won')
   const lost       = opportunities.filter(o => o.status === 'lost')
-  const stalled    = opportunities.filter(o => o.status === 'stalled')
+  // Stalled is derived from time in stage — nothing ever stores status 'stalled'.
+  const isStalledOpp = (o: { status: string; stage: number; stage_entered_at: string }) =>
+    o.status === 'active' && isStalled(o.stage, o.stage_entered_at)
+  const stalled    = opportunities.filter(isStalledOpp)
   const dealVal    = (o: { value?: number | null; estimated_value?: number | null }) => o.value ?? o.estimated_value ?? 0
   const totalVal   = active.reduce((s, o) => s + dealVal(o), 0)
   const wonVal     = won.reduce((s, o) => s + dealVal(o), 0)
@@ -97,7 +101,7 @@ export async function generatePptx(filters: ReportFilters): Promise<{ base64?: s
         name: p.name,
         active: ro.filter(o => o.status === 'active').length,
         won:    ro.filter(o => o.status === 'won').length,
-        stalled:ro.filter(o => o.status === 'stalled').length,
+        stalled:ro.filter(isStalledOpp).length,
         pipeline: ro.reduce((s,o) => s + dealVal(o), 0),
       }
     })
@@ -107,7 +111,7 @@ export async function generatePptx(filters: ReportFilters): Promise<{ base64?: s
     .sort((a,b) => dealVal(b) - dealVal(a))
     .slice(0, 8)
 
-  const stalledDeals = opportunities.filter(o => o.status === 'stalled').slice(0, 6)
+  const stalledDeals = opportunities.filter(isStalledOpp).slice(0, 6)
 
   const reportTypeLabel: Record<string,string> = {
     pipeline_summary: 'Pipeline Summary',
@@ -320,7 +324,8 @@ export async function generatePptx(filters: ReportFilters): Promise<{ base64?: s
         s.addShape('rect', { x: 0.3, y: ry, w: 0.08, h: 0.88, fill: { color: C.red }, rectRadius: 0.04 })
         s.addText(d.company_name, { x: 0.55, y: ry + 0.08, w: 5, h: 0.3, fontSize: 11, bold: true, color: C.dark })
         s.addText(d.title, { x: 0.55, y: ry + 0.38, w: 6, h: 0.25, fontSize: 9, color: C.text })
-        s.addText(`Stage ${d.stage}: ${STAGE_META[d.stage]?.name ?? ''}`, { x: 0.55, y: ry + 0.61, w: 5, h: 0.22, fontSize: 8.5, color: C.textMuted })
+        const blocker = activeBlocker(d)?.label ?? 'Blocker not recorded'
+        s.addText(`Stage ${d.stage}: ${STAGE_META[d.stage]?.name ?? ''}  ·  Blocker: ${blocker}`, { x: 0.55, y: ry + 0.61, w: 8, h: 0.22, fontSize: 8.5, color: C.textMuted })
         // Value
         if (d.value) s.addText(formatVal(d.value, d.currency), { x: 9, y: ry + 0.12, w: 3.5, h: 0.35, fontSize: 13, bold: true, color: C.red, align: 'right' })
         // BDO

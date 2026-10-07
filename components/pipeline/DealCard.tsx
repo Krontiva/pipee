@@ -6,6 +6,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { AlertTriangle, Calendar, User, TrendingUp } from 'lucide-react'
 import { cn, formatCurrency, formatDate, isStalled, isOverdue } from '@/lib/utils'
 import { StatusBadge } from '@/components/shared/StatusBadge'
+import { BlockerPill } from '@/components/shared/BlockerPill'
 import type { Opportunity } from '@/types'
 
 export function DealCard({ opportunity }: { opportunity: Opportunity }) {
@@ -33,9 +34,10 @@ export function DealCard({ opportunity }: { opportunity: Opportunity }) {
       )}
     >
       {stalled && (
-        <div className="flex items-center gap-1 text-red-500 text-xs mb-2">
+        <div className="flex items-center gap-1.5 text-red-500 text-xs mb-2 flex-wrap">
           <AlertTriangle size={11} />
           <span>Stalled</span>
+          <BlockerPill opp={opportunity} />
         </div>
       )}
 

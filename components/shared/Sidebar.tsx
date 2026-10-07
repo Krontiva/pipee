@@ -31,10 +31,11 @@ const NAV_ITEMS = [
 const STORAGE_KEY = 'krongage-sidebar-collapsed'
 
 interface SidebarProps {
+  blockerCount?: number
   profile: Profile
 }
 
-export function Sidebar({ profile }: SidebarProps) {
+export function Sidebar({ profile, blockerCount = 0 }: SidebarProps) {
   const pathname = usePathname()
   const [isPending, startTransition] = useTransition()
   const [collapsed, setCollapsed] = useState(false)
@@ -63,6 +64,9 @@ export function Sidebar({ profile }: SidebarProps) {
 
   // Prevent layout flash before hydration — render expanded server-side
   const isCollapsed = mounted && collapsed
+
+  // Stalled deals waiting for a blocker are actioned from the dashboard and pipeline.
+  const showBadge = (href: string) => blockerCount > 0 && (href === '/dashboard' || href === '/pipeline')
 
   return (
     <aside
@@ -124,11 +128,24 @@ export function Sidebar({ profile }: SidebarProps) {
                   : 'text-gray-500 hover:bg-slate-100 hover:text-gray-800'
               )}
             >
-              <Icon size={16} className="shrink-0" />
+              <span className="relative shrink-0">
+                <Icon size={16} />
+                {isCollapsed && showBadge(href) && (
+                  <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-500" />
+                )}
+              </span>
               {!isCollapsed && (
                 <>
                   <span>{label}</span>
-                  {active && <ChevronRight size={12} className="ml-auto opacity-60" />}
+                  {showBadge(href) && (
+                    <span
+                      title={`${blockerCount} stalled deal${blockerCount > 1 ? 's' : ''} need a blocker`}
+                      className="ml-auto min-w-5 h-5 px-1.5 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center"
+                    >
+                      {blockerCount}
+                    </span>
+                  )}
+                  {active && !showBadge(href) && <ChevronRight size={12} className="ml-auto opacity-60" />}
                 </>
               )}
             </Link>
