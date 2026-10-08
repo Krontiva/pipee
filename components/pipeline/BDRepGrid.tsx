@@ -138,7 +138,7 @@ export function BDRepGrid({ opportunities, profiles }: BDRepGridProps) {
                 {initials(selectedRep.name)}
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-gray-900">{selectedRep.name}'s Pipeline</h3>
+                <h3 className="font-semibold text-gray-900">{selectedRep.name}&apos;s Pipeline</h3>
                 <p className="text-xs text-gray-400 mt-0.5">{selectedOpps.length} deal{selectedOpps.length !== 1 ? 's' : ''}</p>
               </div>
               <button onClick={() => setSelectedRep(null)} className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-slate-100 transition-colors">

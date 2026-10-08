@@ -44,6 +44,7 @@ export function Sidebar({ profile, blockerCount = 0 }: SidebarProps) {
   // Hydrate from localStorage on mount only
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY)
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage is client-only; reading it during render would mismatch SSR
     if (stored === 'true') setCollapsed(true)
     setMounted(true)
   }, [])

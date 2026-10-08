@@ -43,7 +43,7 @@ export default async function DashboardPage() {
           <h2 className="text-lg font-semibold text-gray-900 mb-1">
             Good {getGreeting()}, {profile.name.split(' ')[0]} 👋
           </h2>
-          <p className="text-gray-400 text-sm">Here's your Pipee pipeline overview.</p>
+          <p className="text-gray-400 text-sm">Here&apos;s your Pipee pipeline overview.</p>
         </div>
 
         {/* Onboarding banner */}

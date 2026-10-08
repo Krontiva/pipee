@@ -15,6 +15,11 @@ interface ListViewProps {
   opportunities: Opportunity[]
 }
 
+function SortIcon({ col, sort }: { col: SortKey; sort: { key: SortKey; dir: 'asc' | 'desc' } }) {
+  if (sort.key !== col) return <ArrowUpDown size={12} className="text-gray-300" />
+  return sort.dir === 'asc' ? <ChevronUp size={12} className="text-indigo-500" /> : <ChevronDown size={12} className="text-indigo-500" />
+}
+
 export function ListView({ opportunities }: ListViewProps) {
   const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' }>({ key: 'stage', dir: 'asc' })
 
@@ -31,11 +36,6 @@ export function ListView({ opportunities }: ListViewProps) {
     return String(va).localeCompare(String(vb)) * dir
   })
 
-  function SortIcon({ col }: { col: SortKey }) {
-    if (sort.key !== col) return <ArrowUpDown size={12} className="text-gray-300" />
-    return sort.dir === 'asc' ? <ChevronUp size={12} className="text-indigo-500" /> : <ChevronDown size={12} className="text-indigo-500" />
-  }
-
   const thBtn = 'flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-800'
 
   return (
@@ -45,28 +45,28 @@ export function ListView({ opportunities }: ListViewProps) {
           <tr>
             <th className="text-left px-4 py-3">
               <button onClick={() => toggleSort('company_name')} className={thBtn}>
-                Company <SortIcon col="company_name" />
+                Company <SortIcon sort={sort} col="company_name" />
               </button>
             </th>
             <th className="text-left px-4 py-3">
               <button onClick={() => toggleSort('stage')} className={thBtn}>
-                Stage <SortIcon col="stage" />
+                Stage <SortIcon sort={sort} col="stage" />
               </button>
             </th>
             <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Assigned</th>
             <th className="text-left px-4 py-3">
               <button onClick={() => toggleSort('value')} className={thBtn}>
-                Value <SortIcon col="value" />
+                Value <SortIcon sort={sort} col="value" />
               </button>
             </th>
             <th className="text-left px-4 py-3">
               <button onClick={() => toggleSort('status')} className={thBtn}>
-                Status <SortIcon col="status" />
+                Status <SortIcon sort={sort} col="status" />
               </button>
             </th>
             <th className="text-left px-4 py-3">
               <button onClick={() => toggleSort('next_action_date')} className={thBtn}>
-                Next Action <SortIcon col="next_action_date" />
+                Next Action <SortIcon sort={sort} col="next_action_date" />
               </button>
             </th>
             <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">MEDDIC</th>

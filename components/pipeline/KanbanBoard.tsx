@@ -1,10 +1,9 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState } from 'react'
 import {
   DndContext,
   DragEndEvent,
-  DragOverEvent,
   DragStartEvent,
   PointerSensor,
   useSensor,
@@ -12,7 +11,6 @@ import {
   DragOverlay,
   closestCenter,
 } from '@dnd-kit/core'
-import { arrayMove } from '@dnd-kit/sortable'
 import { advanceStage } from '@/lib/actions/opportunities'
 import { KanbanColumn } from './KanbanColumn'
 import { DealCard } from './DealCard'
@@ -24,6 +22,15 @@ interface KanbanBoardProps {
 
 export function KanbanBoard({ initialOpportunities }: KanbanBoardProps) {
   const [opportunities, setOpportunities] = useState(initialOpportunities)
+  const [syncedFrom, setSyncedFrom] = useState(initialOpportunities)
+
+  // The parent refetches on filter change and on realtime updates; without this
+  // the board kept showing the first load forever. Safe mid-drag: the drag
+  // overlay holds its own copy of the card.
+  if (syncedFrom !== initialOpportunities) {
+    setSyncedFrom(initialOpportunities)
+    setOpportunities(initialOpportunities)
+  }
   const [activeOpp, setActiveOpp] = useState<Opportunity | null>(null)
   const [stageError, setStageError] = useState<string | null>(null)
 

@@ -50,9 +50,11 @@ export function CommandPalette() {
   // Focus & reset on open
   useEffect(() => {
     if (open) {
+      /* eslint-disable react-hooks/set-state-in-effect -- intentional reset each time the palette opens */
       setQuery('')
       setResults([])
       setActiveIndex(0)
+      /* eslint-enable react-hooks/set-state-in-effect */
       setTimeout(() => inputRef.current?.focus(), 30)
     }
   }, [open])
@@ -60,6 +62,7 @@ export function CommandPalette() {
   // Debounced Supabase search
   useEffect(() => {
     if (!query.trim()) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clear stale results when the box is emptied
       setResults([])
       setLoading(false)
       return
@@ -257,7 +260,7 @@ export function CommandPalette() {
               <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
                 <Search size={20} className="text-gray-300" />
               </div>
-              <p className="text-gray-600 text-sm font-medium">No results for "{query}"</p>
+              <p className="text-gray-600 text-sm font-medium">No results for &quot;{query}&quot;</p>
               <p className="text-gray-400 text-xs mt-1">Try searching by deal name or company</p>
             </div>
           )}

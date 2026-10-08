@@ -48,7 +48,7 @@ function WelcomeSlide() {
       <div>
         <h2 className="text-3xl font-bold text-gray-900">Welcome to Pipee</h2>
         <p className="text-gray-500 mt-2 text-lg max-w-lg mx-auto">
-          Your team's command centre for tracking every deal from first contact to signed contract.
+          Your team&apos;s command centre for tracking every deal from first contact to signed contract.
         </p>
       </div>
       <div className="grid grid-cols-3 gap-4 w-full max-w-lg mt-2">
@@ -110,7 +110,7 @@ function PipelineOverviewSlide() {
   return (
     <div className="space-y-4">
       <p className="text-gray-600 text-sm leading-relaxed">
-        Every deal moves through <strong className="text-gray-900">7 stages</strong>. Click a stage to see what it's for and how long it should take.
+        Every deal moves through <strong className="text-gray-900">7 stages</strong>. Click a stage to see what it&apos;s for and how long it should take.
       </p>
       <div className="flex flex-col gap-2">
         {Object.entries(STAGE_META).map(([n, meta]) => {
@@ -188,7 +188,7 @@ function MEDDICSlide() {
       <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3.5 flex gap-3">
         <Star size={15} className="text-indigo-500 shrink-0 mt-0.5" />
         <p className="text-sm text-indigo-700">
-          Find the MEDDIC scorecard inside any deal's detail page. Fill it in after every discovery call — it unlocks stage advancement.
+          Find the MEDDIC scorecard inside any deal&apos;s detail page. Fill it in after every discovery call — it unlocks stage advancement.
         </p>
       </div>
     </div>
@@ -263,7 +263,7 @@ function DealDetailSlide() {
           <CalendarDays size={14} className="text-indigo-500 shrink-0 mt-0.5" />
           <div>
             <p className="text-xs font-semibold text-indigo-700">Next Action card</p>
-            <p className="text-xs text-indigo-600/80 mt-0.5">Pinned at the top of the feed. Click "Next action" to set or update it. Turns red when overdue.</p>
+            <p className="text-xs text-indigo-600/80 mt-0.5">Pinned at the top of the feed. Click &quot;Next action&quot; to set or update it. Turns red when overdue.</p>
           </div>
         </div>
         {[
@@ -426,7 +426,7 @@ function ReadySlide({ onFinish }: { onFinish: () => void }) {
         <Trophy size={36} className="text-white" />
       </div>
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">You're ready to close deals.</h2>
+        <h2 className="text-2xl font-bold text-gray-900">You&apos;re ready to close deals.</h2>
         <p className="text-gray-500 mt-2 max-w-md mx-auto">
           Remember — keep your pipeline moving, fill in MEDDIC after every call, and never let a deal go stale.
         </p>

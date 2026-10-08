@@ -50,7 +50,7 @@ function DashboardSlide() {
   return (
     <div className="space-y-5">
       <p className="text-gray-600 text-sm leading-relaxed">
-        The admin <strong className="text-gray-900">Dashboard</strong> shows a complete picture of the team's pipeline — not just your own deals. You get four key views every time you open it.
+        The admin <strong className="text-gray-900">Dashboard</strong> shows a complete picture of the team&apos;s pipeline — not just your own deals. You get four key views every time you open it.
       </p>
       <div className="grid grid-cols-2 gap-3">
         {[
@@ -130,7 +130,7 @@ function StalledDealsSlide() {
   return (
     <div className="space-y-5">
       <p className="text-gray-600 text-sm leading-relaxed">
-        A deal is flagged <strong className="text-red-600">Stalled</strong> when it has been in a stage for more than 2× the target time for that stage. Here's how to handle it.
+        A deal is flagged <strong className="text-red-600">Stalled</strong> when it has been in a stage for more than 2× the target time for that stage. Here&apos;s how to handle it.
       </p>
       <div className="space-y-3">
         {[
@@ -294,7 +294,7 @@ function ReadySlide({ onFinish }: { onFinish: () => void }) {
         <CheckCircle2 size={40} className="text-white" />
       </div>
       <div>
-        <h2 className="text-3xl font-bold text-gray-900">You're All Set</h2>
+        <h2 className="text-3xl font-bold text-gray-900">You&apos;re All Set</h2>
         <p className="text-gray-500 mt-2 text-lg max-w-lg mx-auto">
           You know how to monitor the team, manage stalled deals, generate reports, and configure the platform. Head to the dashboard to get started.
         </p>
