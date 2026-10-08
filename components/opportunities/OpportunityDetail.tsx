@@ -166,7 +166,7 @@ export function OpportunityDetail({
                 )}
               </button>
 
-              <DealOutcomeBar opportunityId={opp.id} currentStatus={opp.status} />
+              <DealOutcomeBar opportunityId={opp.id} currentStatus={opp.status} isAdmin={profile.role === 'admin'} />
               <EditDealButton opportunity={opp} profiles={profiles} sectors={sectors} currentUserRole={profile.role} />
 
               {(opp.value || opp.estimated_value) && (

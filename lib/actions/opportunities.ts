@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { requireActiveUser, requireAdmin } from '@/lib/auth-guards'
 import { STAGE_META, SUB_STAGES, STAGE_DEFAULT_NEXT_ACTION, BLOCKER_OPTIONS } from '@/types'
 import type { DisqualificationReason, BlockerKey } from '@/types'
 
@@ -67,20 +68,29 @@ export async function createOpportunity(formData: FormData) {
 }
 
 export async function advanceStage(opportunityId: string, newStage: number) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Not authenticated' }
+  const guard = await requireActiveUser()
+  if ('error' in guard) return { error: guard.error }
+  const { supabase, user } = guard
 
-  if (newStage < 1 || newStage > 7) return { error: 'Invalid stage' }
+  if (!Number.isInteger(newStage) || newStage < 1 || newStage > 7) return { error: 'Invalid stage' }
 
   const { data: opp } = await supabase
     .from('opportunities')
-    .select('stage, meddic_scores(*)')
+    .select('stage, status, meddic_scores(*)')
     .eq('id', opportunityId)
     .single()
 
   if (!opp) return { error: 'Opportunity not found.' }
   const currentStage = opp.stage
+
+  if (['won', 'lost', 'disqualified'].includes(opp.status)) {
+    return { error: `This deal is ${opp.status}. An admin must reopen it before it can move.` }
+  }
+  if (newStage === currentStage) return { success: true }
+  // One step at a time, so no stage's checklist or MEDDIC gate can be skipped.
+  if (newStage > currentStage + 1) {
+    return { error: `Deals move one stage at a time. Move to Stage ${currentStage + 1} first.` }
+  }
 
   // Only enforce gates when moving forward
   if (newStage > currentStage) {
@@ -141,7 +151,7 @@ export async function advanceStage(opportunityId: string, newStage: number) {
     opportunity_id: opportunityId,
     user_id: user.id,
     type: 'stage_change',
-    title: `Moved to Stage ${newStage}: ${STAGE_META[newStage]?.name}`,
+    title: `${newStage < currentStage ? 'Moved back to' : 'Moved to'} Stage ${newStage}: ${STAGE_META[newStage]?.name}`,
     occurred_at: new Date().toISOString(),
   })
 
@@ -178,10 +188,59 @@ export async function toggleSubStage(
   return { success: true }
 }
 
+// Fields a deal's owner may edit. Stage, status and owner are deliberately
+// absent: those only change through advanceStage, the outcome actions, or
+// (for the owner) an admin.
+const EDITABLE_DEAL_FIELDS = [
+  'title', 'company_name', 'sector', 'website',
+  'value', 'estimated_value', 'currency', 'notes',
+] as const
+
 export async function updateOpportunity(id: string, updates: Record<string, unknown>) {
-  const supabase = await createClient()
-  const { error } = await supabase.from('opportunities').update(updates).eq('id', id)
+  const guard = await requireActiveUser()
+  if ('error' in guard) return { error: guard.error }
+  const { supabase, profile } = guard
+
+  const safe: Record<string, unknown> = {}
+  for (const key of EDITABLE_DEAL_FIELDS) {
+    if (key in updates) safe[key] = updates[key]
+  }
+  // Only admins may reassign a deal.
+  if ('assigned_to' in updates) {
+    if (profile.role !== 'admin') return { error: 'Only an admin can reassign a deal.' }
+    safe.assigned_to = updates.assigned_to
+  }
+  if (Object.keys(safe).length === 0) return { error: 'Nothing to update.' }
+
+  const { data, error } = await supabase.from('opportunities').update(safe).eq('id', id).select('id')
   if (error) return { error: error.message }
+  if (!data?.length) return { error: 'You do not have access to this deal.' }
+  revalidatePath('/pipeline')
+  revalidatePath(`/opportunities/${id}`)
+  revalidatePath('/dashboard')
+  return { success: true }
+}
+
+// Admin-only: put a won, lost or disqualified deal back into the pipeline.
+export async function reopenOpportunity(id: string) {
+  const guard = await requireAdmin()
+  if ('error' in guard) return { error: guard.error }
+  const { supabase, user } = guard
+
+  const { error } = await supabase
+    .from('opportunities')
+    .update({ status: 'active', disqualification_reason: null, stage_entered_at: new Date().toISOString() })
+    .eq('id', id)
+  if (error) return { error: error.message }
+
+  await supabase.from('activities').insert({
+    opportunity_id: id,
+    user_id: user.id,
+    type: 'note',
+    title: 'Deal reopened by admin',
+    occurred_at: new Date().toISOString(),
+  })
+
   revalidatePath('/pipeline')
   revalidatePath(`/opportunities/${id}`)
   revalidatePath('/dashboard')

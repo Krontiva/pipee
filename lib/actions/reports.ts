@@ -1,19 +1,14 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { requireAdmin } from '@/lib/auth-guards'
 
 // ── Save / retrieve API key from admin_settings ──────────────────────────────
 export async function saveApiKey(key: string, value: string) {
-  const supabase = await createClient()
+  const guard = await requireAdmin()
+  if ('error' in guard) return { error: guard.error }
 
-  // Enforce admin role server-side — never rely solely on UI gating
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Not authenticated.' }
-  const { data: profile } = await supabase
-    .from('profiles').select('role').eq('id', user.id).single()
-  if (!profile || profile.role !== 'admin') return { error: 'Unauthorised: admin only.' }
-
-  const { error } = await supabase
+  const { error } = await guard.supabase
     .from('admin_settings')
     .upsert({ key, value, updated_at: new Date().toISOString() })
   if (error) return { error: error.message }
@@ -42,7 +37,9 @@ export interface ReportFilters {
 }
 
 export async function generateReport(filters: ReportFilters): Promise<{ report?: string; error?: string }> {
-  const supabase = await createClient()
+  const guard = await requireAdmin()
+  if ('error' in guard) return { error: guard.error }
+  const supabase = guard.supabase
 
   // Fetch API key
   const grokKey = await getApiKey('groq_api_key')

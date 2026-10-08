@@ -1,31 +1,29 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { requireAdmin } from '@/lib/auth-guards'
+import { supabaseAdmin } from '@/lib/supabase/admin'
 
 export async function inviteUser(formData: FormData) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Not authenticated' }
+  const guard = await requireAdmin()
+  if ('error' in guard) return { error: guard.error }
 
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'admin') return { error: 'Unauthorized' }
+  const email = (formData.get('email') as string)?.trim()
+  const name = (formData.get('name') as string)?.trim()
+  const role = formData.get('role')
+  const password = formData.get('password') as string
 
-  const email = formData.get('email') as string
-  const name = formData.get('name') as string
-  const role = formData.get('role') as 'admin' | 'bd_rep'
+  if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { error: 'Enter a valid email address.' }
+  if (!name) return { error: 'Name is required.' }
+  if (role !== 'admin' && role !== 'bd_rep') return { error: 'Invalid role.' }
+  if (!password || password.length < 8) return { error: 'Password must be at least 8 characters.' }
 
   // Create auth user with a temporary password (user will reset via email)
-  const { createClient: createServiceClient } = await import('@supabase/supabase-js')
-  const adminClient = createServiceClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
+  const adminClient = supabaseAdmin()
 
   const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
     email,
-    password: formData.get('password') as string,
+    password,
     email_confirm: true,
   })
 
@@ -37,26 +35,41 @@ export async function inviteUser(formData: FormData) {
     role,
   })
 
-  if (profileError) return { error: profileError.message }
+  if (profileError) {
+    // Don't leave a login with no profile behind.
+    await adminClient.auth.admin.deleteUser(newUser.user.id)
+    return { error: profileError.message }
+  }
 
   revalidatePath('/admin')
   return { success: true }
 }
 
 export async function toggleUserActive(userId: string, isActive: boolean) {
-  const supabase = await createClient()
-  const { error } = await supabase
+  const guard = await requireAdmin()
+  if ('error' in guard) return { error: guard.error }
+  if (userId === guard.user.id && !isActive) return { error: 'You cannot deactivate your own account.' }
+
+  const { error } = await guard.supabase
     .from('profiles')
     .update({ is_active: isActive })
     .eq('id', userId)
-
   if (error) return { error: error.message }
+
+  // Also block the login itself, so an already-signed-in session stops working.
+  const { error: banError } = await supabaseAdmin().auth.admin.updateUserById(userId, {
+    ban_duration: isActive ? 'none' : '876000h',
+  })
+  if (banError) return { error: banError.message }
+
   revalidatePath('/admin')
   return { success: true }
 }
 
 export async function upsertSectorAction(formData: FormData): Promise<void> {
-  const supabase = await createClient()
+  const guard = await requireAdmin()
+  if ('error' in guard) return
+  const supabase = guard.supabase
   const id = formData.get('id') as string | null
 
   const sectorData = {

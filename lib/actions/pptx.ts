@@ -1,7 +1,7 @@
 'use server'
 
 import PptxGenJS from 'pptxgenjs'
-import { createClient } from '@/lib/supabase/server'
+import { requireAdmin } from '@/lib/auth-guards'
 import { STAGE_META } from '@/types'
 import { isStalled, activeBlocker } from '@/lib/utils'
 import type { ReportFilters } from './reports'
@@ -52,7 +52,9 @@ function formatVal(v: number, currency = 'GHS') {
 
 // ── Main generator ────────────────────────────────────────────────────────────
 export async function generatePptx(filters: ReportFilters): Promise<{ base64?: string; error?: string }> {
-  const supabase = await createClient()
+  const guard = await requireAdmin()
+  if ('error' in guard) return { error: guard.error }
+  const supabase = guard.supabase
 
   // ── Fetch data ─────────────────────────────────────────────────────────────
   let query = supabase

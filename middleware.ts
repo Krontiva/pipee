@@ -76,14 +76,23 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
-  if (pathname.startsWith('/admin')) {
+  if (user && pathname !== '/login') {
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role')
-      .eq('id', user!.id)
+      .select('role, is_active')
+      .eq('id', user.id)
       .single()
 
-    if (profile?.role !== 'admin') {
+    // Deactivated (or profile-less) accounts are signed out on their next request.
+    if (!profile || !profile.is_active) {
+      await supabase.auth.signOut()
+      const redirect = NextResponse.redirect(new URL('/login', request.url))
+      // signOut queued cookie-clearing on supabaseResponse; carry it over.
+      supabaseResponse.cookies.getAll().forEach(c => redirect.cookies.set(c))
+      return redirect
+    }
+
+    if (pathname.startsWith('/admin') && profile.role !== 'admin') {
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
   }

@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { Trophy, ThumbsDown, Ban, ChevronDown, Loader2, X, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { markWonLost, disqualifyOpportunity } from '@/lib/actions/opportunities'
+import { markWonLost, disqualifyOpportunity, reopenOpportunity } from '@/lib/actions/opportunities'
 import type { OpportunityStatus, DisqualificationReason } from '@/types'
 
 const DISQ_REASONS: { value: DisqualificationReason; label: string }[] = [
@@ -18,9 +18,10 @@ const DISQ_REASONS: { value: DisqualificationReason; label: string }[] = [
 interface DealOutcomeBarProps {
   opportunityId: string
   currentStatus: OpportunityStatus
+  isAdmin?: boolean
 }
 
-export function DealOutcomeBar({ opportunityId, currentStatus }: DealOutcomeBarProps) {
+export function DealOutcomeBar({ opportunityId, currentStatus, isAdmin = false }: DealOutcomeBarProps) {
   const [modal, setModal] = useState<'won' | 'lost' | 'disqualify' | null>(null)
   const [notes, setNotes] = useState('')
   const [disqReason, setDisqReason] = useState<DisqualificationReason>('NO_FIT')
@@ -57,6 +58,19 @@ export function DealOutcomeBar({ opportunityId, currentStatus }: DealOutcomeBarP
     return (
       <div className={cn('flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold', cls)}>
         {label}
+        {isAdmin && (
+          <button
+            disabled={isPending}
+            onClick={() => startTransition(async () => {
+              const result = await reopenOpportunity(opportunityId)
+              if (result.error) setError(result.error)
+            })}
+            className="ml-2 text-xs font-medium underline underline-offset-2 opacity-70 hover:opacity-100 disabled:opacity-40"
+          >
+            Reopen
+          </button>
+        )}
+        {error && <span className="ml-2 text-xs text-red-600">{error}</span>}
       </div>
     )
   }
