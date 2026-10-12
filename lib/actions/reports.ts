@@ -34,6 +34,18 @@ export interface ReportFilters {
   status?: string
   reportType: 'pipeline_summary' | 'individual_performance' | 'deal_deep_dive' | 'sector_analysis'
   dealId?: string
+  productId?: string    // product id or 'all'
+}
+
+// Which product(s) a report covers, and what to call them.
+export async function resolveReportProduct(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  productId?: string,
+): Promise<{ id: string | null; name: string | null; allNames: string[] }> {
+  const { data } = await supabase.from('products').select('id, name').order('name')
+  const products = data ?? []
+  const chosen = productId && productId !== 'all' ? products.find(p => p.id === productId) : undefined
+  return { id: chosen?.id ?? null, name: chosen?.name ?? null, allNames: products.map(p => p.name) }
 }
 
 export async function generateReport(filters: ReportFilters): Promise<{ report?: string; error?: string }> {
@@ -45,11 +57,17 @@ export async function generateReport(filters: ReportFilters): Promise<{ report?:
   const grokKey = await getApiKey('groq_api_key')
   if (!grokKey) return { error: 'Groq API key not configured. Add it in Admin → Settings.' }
 
+  const product = await resolveReportProduct(supabase, filters.productId)
+  if (filters.productId && filters.productId !== 'all' && !product.id) return { error: 'Product not found.' }
+
   // Fetch data
   let query = supabase
     .from('opportunities')
     .select('*, profiles(name, role), meddic_scores(score, identified_pain, economic_buyer_name, champion_name), activities(type, title, occurred_at)')
 
+  if (product.id) {
+    query = query.eq('product_id', product.id)
+  }
   if (filters.assignedTo && filters.assignedTo !== 'all') {
     query = query.eq('assigned_to', filters.assignedTo)
   }
@@ -108,7 +126,7 @@ export async function generateReport(filters: ReportFilters): Promise<{ report?:
 
   const dataContext = JSON.stringify({
     reportType: reportTypeLabels[filters.reportType],
-    filters: { ...filters, totalDeals: opportunities?.length },
+    filters: { ...filters, product: product.name ?? 'All products', totalDeals: opportunities?.length },
     summary: { totalDeals: opportunities?.length, totalPipelineValue: totalValue },
     byStage,
     byRep,
@@ -129,7 +147,8 @@ export async function generateReport(filters: ReportFilters): Promise<{ report?:
     })),
   }, null, 2)
 
-  const systemPrompt = `You are a senior business development analyst for Krontiva, a Ghanaian tech company selling the Krongage customer engagement platform.
+  const systemPrompt = `You are a senior business development analyst for Krontiva, a Ghanaian tech company selling ${product.name ? `the ${product.name} product` : `these products: ${product.allNames.join(', ') || 'none yet'}`}.
+This report covers ${product.name ? product.name : 'all products combined'}.
 You write clear, professional BD pipeline reports in a structured format.
 Use markdown formatting. Be specific with numbers. Highlight risks, wins, and recommendations.
 Write in a professional but direct tone — this is an internal management report.`

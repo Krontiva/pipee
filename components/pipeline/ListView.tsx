@@ -7,6 +7,7 @@ import { cn, formatCurrency, formatDate, isStalled } from '@/lib/utils'
 import { StageTag } from '@/components/shared/StageTag'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { BlockerPill } from '@/components/shared/BlockerPill'
+import { ProductTag } from '@/components/shared/ProductTag'
 import type { Opportunity } from '@/types'
 
 type SortKey = 'company_name' | 'stage' | 'value' | 'next_action_date' | 'status'
@@ -85,6 +86,7 @@ export function ListView({ opportunities }: ListViewProps) {
                     <p className="text-gray-800 font-medium">{opp.title}</p>
                     <p className="text-gray-400 text-xs">{opp.company_name}</p>
                   </Link>
+                  <ProductTag productId={opp.product_id} className="mt-1" />
                 </td>
                 <td className="px-4 py-3">
                   <StageTag stage={opp.stage} showName={false} />

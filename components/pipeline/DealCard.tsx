@@ -7,6 +7,7 @@ import { AlertTriangle, Calendar, User, TrendingUp } from 'lucide-react'
 import { cn, formatCurrency, formatDate, isStalled, isOverdue } from '@/lib/utils'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { BlockerPill } from '@/components/shared/BlockerPill'
+import { ProductTag } from '@/components/shared/ProductTag'
 import type { Opportunity } from '@/types'
 
 export function DealCard({ opportunity }: { opportunity: Opportunity }) {
@@ -51,6 +52,7 @@ export function DealCard({ opportunity }: { opportunity: Opportunity }) {
         </p>
         <p className="text-gray-400 text-xs mt-0.5">{opportunity.company_name}</p>
       </Link>
+      <ProductTag productId={opportunity.product_id} className="mt-1.5" />
 
       <div className="mt-3 space-y-1.5">
         {opportunity.value ? (

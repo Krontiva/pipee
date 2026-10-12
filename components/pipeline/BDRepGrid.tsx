@@ -7,6 +7,7 @@ import { cn, formatCurrency, formatDate, isStalled, isOverdue } from '@/lib/util
 import { StageTag } from '@/components/shared/StageTag'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { BlockerPill } from '@/components/shared/BlockerPill'
+import { ProductTag } from '@/components/shared/ProductTag'
 import { initials } from '@/lib/utils'
 import type { Opportunity, Profile } from '@/types'
 
@@ -174,6 +175,7 @@ export function BDRepGrid({ opportunities, profiles }: BDRepGridProps) {
                                 <p className="text-gray-800 font-medium text-sm">{opp.title}</p>
                                 <p className="text-gray-400 text-xs">{opp.company_name}</p>
                               </Link>
+                              <ProductTag productId={opp.product_id} className="mt-1" />
                             </td>
                             <td className="px-4 py-3">
                               <StageTag stage={opp.stage} showName={false} />

@@ -4,6 +4,7 @@ import PptxGenJS from 'pptxgenjs'
 import { requireAdmin } from '@/lib/auth-guards'
 import { STAGE_META } from '@/types'
 import { isStalled, activeBlocker } from '@/lib/utils'
+import { resolveReportProduct } from './reports'
 import type { ReportFilters } from './reports'
 
 // ── Brand colours ─────────────────────────────────────────────────────────────
@@ -56,11 +57,16 @@ export async function generatePptx(filters: ReportFilters): Promise<{ base64?: s
   if ('error' in guard) return { error: guard.error }
   const supabase = guard.supabase
 
+  const product = await resolveReportProduct(supabase, filters.productId)
+  if (filters.productId && filters.productId !== 'all' && !product.id) return { error: 'Product not found.' }
+  const productLabel = product.name ?? 'All products'
+
   // ── Fetch data ─────────────────────────────────────────────────────────────
   let query = supabase
     .from('opportunities')
     .select('*, profiles(name, role), meddic_scores(score), activities(type)')
 
+  if (product.id) query = query.eq('product_id', product.id)
   if (filters.assignedTo && filters.assignedTo !== 'all') query = query.eq('assigned_to', filters.assignedTo)
   if (filters.stage     && filters.stage     !== 'all') query = query.eq('stage', filters.stage)
   if (filters.status    && filters.status    !== 'all') query = query.eq('status', filters.status)
@@ -138,8 +144,8 @@ export async function generatePptx(filters: ReportFilters): Promise<{ base64?: s
     s.addShape('rect', { x: 0, y: 0, w: 4.5, h: 7.5, fill: { color: C.indigo } })
     // Logo block
     s.addShape('rect', { x: 0.5, y: 0.6, w: 0.9, h: 0.9, fill: { color: C.white }, rectRadius: 0.14 })
-    s.addText('K', { x: 0.5, y: 0.6, w: 0.9, h: 0.9, fontSize: 28, bold: true, color: C.indigo, align: 'center', valign: 'middle' })
-    s.addText('KRONGAGE BD', { x: 1.55, y: 0.72, w: 2.7, h: 0.35, fontSize: 11, bold: true, color: C.white, valign: 'middle' })
+    s.addText(product.name ? product.name.charAt(0).toUpperCase() : 'P', { x: 0.5, y: 0.6, w: 0.9, h: 0.9, fontSize: 28, bold: true, color: C.indigo, align: 'center', valign: 'middle' })
+    s.addText(`${productLabel.toUpperCase()} BD`, { x: 1.55, y: 0.72, w: 2.7, h: 0.35, fontSize: 11, bold: true, color: C.white, valign: 'middle' })
     s.addText('Pipeline Management', { x: 1.55, y: 1.03, w: 2.7, h: 0.28, fontSize: 9, color: 'C7D2FE', valign: 'middle' })
     // Report title
     s.addText(reportTitle, { x: 0.4, y: 2.2, w: 3.7, h: 1.2, fontSize: 28, bold: true, color: C.white })

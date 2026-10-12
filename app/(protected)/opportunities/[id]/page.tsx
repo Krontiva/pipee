@@ -51,7 +51,7 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
           brief={brief ?? null}
           proposals={proposals ?? []}
           contacts={contacts ?? []}
-          sectors={sectors ?? []}
+          sectors={(sectors ?? []).filter(s => s.product_id === opp.product_id)}
           profiles={profiles ?? []}
           subStageProgress={subStageProgress ?? []}
           reviewerName={reviewerName}

@@ -7,9 +7,11 @@ import { createClient } from '@/lib/supabase/client'
 import { KanbanBoard } from '@/components/pipeline/KanbanBoard'
 import { ListView } from '@/components/pipeline/ListView'
 import { TopNav } from '@/components/shared/TopNav'
+import { useProduct } from '@/components/shared/ProductProvider'
 import type { Opportunity, Profile, Sector } from '@/types'
 
 export default function PipelinePage() {
+  const { productFilter } = useProduct()
   const [view, setView] = useState<'kanban' | 'list'>('kanban')
   const [filter, setFilter] = useState<'all' | 'mine'>('all')
   const [opportunities, setOpportunities] = useState<Opportunity[]>([])
@@ -28,7 +30,9 @@ export default function PipelinePage() {
 
       const [{ data: prof }, { data: sects }, { data: profs }] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', user.id).single(),
-        supabase.from('sectors').select('*').order('name'),
+        productFilter
+          ? supabase.from('sectors').select('*').eq('product_id', productFilter).order('name')
+          : supabase.from('sectors').select('*').order('name'),
         supabase.from('profiles').select('*').eq('is_active', true),
       ])
 
@@ -43,6 +47,7 @@ export default function PipelinePage() {
           .order('created_at', { ascending: false })
 
         if (filter === 'mine') q = q.eq('assigned_to', user!.id)
+        if (productFilter) q = q.eq('product_id', productFilter)
 
         const { data } = await q
         setOpportunities(data ?? [])
@@ -59,7 +64,7 @@ export default function PipelinePage() {
 
     load()
     return () => { sub?.unsubscribe() }
-  }, [filter])
+  }, [filter, productFilter])
 
   if (loading || !profile) {
     return (

@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { BookOpen, ArrowRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
+import { getProductContext } from '@/lib/products'
 import { TopNav } from '@/components/shared/TopNav'
 import { PipelineMetrics } from '@/components/dashboard/PipelineMetrics'
 import { ConversionChart } from '@/components/dashboard/ConversionChart'
@@ -15,6 +16,15 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  const { productFilter } = await getProductContext(supabase)
+
+  let oppQuery = supabase.from('opportunities').select('*, profiles(*), meddic_scores(score)')
+  let sectorQuery = supabase.from('sectors').select('*')
+  if (productFilter) {
+    oppQuery = oppQuery.eq('product_id', productFilter)
+    sectorQuery = sectorQuery.eq('product_id', productFilter)
+  }
+
   const [
     { data: profile },
     { data: opportunities },
@@ -22,9 +32,9 @@ export default async function DashboardPage() {
     { data: sectors },
   ] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', user.id).single(),
-    supabase.from('opportunities').select('*, profiles(*), meddic_scores(score)'),
+    oppQuery,
     supabase.from('profiles').select('*').eq('is_active', true),
-    supabase.from('sectors').select('*'),
+    sectorQuery,
   ])
 
   if (!profile) redirect('/login')

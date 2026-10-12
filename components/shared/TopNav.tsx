@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, X, Search, Loader2 } from 'lucide-react'
 import { createOpportunity } from '@/lib/actions/opportunities'
+import { useProduct } from '@/components/shared/ProductProvider'
 import { CURRENCIES } from '@/types'
 import type { Profile, Sector } from '@/types'
 
@@ -19,6 +20,12 @@ export function TopNav({ title, profile, sectors = [], profiles = [] }: TopNavPr
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const router = useRouter()
+  const { products, currentProduct, isMember } = useProduct()
+  // Start on the product being viewed (or the first one when viewing all).
+  const [chosenProductId, setChosenProductId] = useState<string | null>(null)
+  const productId = chosenProductId ?? currentProduct?.id ?? products[0]?.id ?? ''
+  const productSectors = sectors.filter(s => s.product_id === productId)
+  const assignable = profiles.filter(p => p.is_active && (p.role === 'admin' || isMember(p.id, productId)))
 
   async function handleCreate(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -56,7 +63,7 @@ export function TopNav({ title, profile, sectors = [], profiles = [] }: TopNavPr
           </button>
 
           <button
-            onClick={() => setShowModal(true)}
+            onClick={() => { setChosenProductId(null); setShowModal(true) }}
             className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
           >
             <Plus size={15} />
@@ -77,6 +84,20 @@ export function TopNav({ title, profile, sectors = [], profiles = [] }: TopNavPr
             </div>
             <form onSubmit={handleCreate} className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
+                {products.length > 0 && (
+                  <div className="col-span-2">
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Product *</label>
+                    <select
+                      name="product_id"
+                      required
+                      value={productId}
+                      onChange={e => setChosenProductId(e.target.value)}
+                      className={inputCls}
+                    >
+                      {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                  </div>
+                )}
                 <div className="col-span-2">
                   <label className="block text-xs font-medium text-gray-600 mb-1">Deal Title *</label>
                   <input name="title" required placeholder="e.g. Ecobank Customer Engagement Platform" className={inputCls} />
@@ -89,12 +110,12 @@ export function TopNav({ title, profile, sectors = [], profiles = [] }: TopNavPr
                   <label className="block text-xs font-medium text-gray-600 mb-1">Sector</label>
                   <select name="sector" className={inputCls}>
                     <option value="">Select sector</option>
-                    {sectors.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                    {productSectors.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Currency</label>
-                  <select name="currency" defaultValue="GHS" className={inputCls}>
+                  <select key={productId} name="currency" defaultValue={products.find(p => p.id === productId)?.currency ?? 'GHS'} className={inputCls}>
                     {CURRENCIES.map(c => (
                       <option key={c.code} value={c.code}>{c.symbol} {c.name}</option>
                     ))}
@@ -112,12 +133,12 @@ export function TopNav({ title, profile, sectors = [], profiles = [] }: TopNavPr
                   </label>
                   <input name="value" type="number" min="0" placeholder="Agreed amount" className={inputCls} />
                 </div>
-                {profile.role === 'admin' && profiles.length > 0 && (
+                {profile.role === 'admin' && assignable.length > 0 && (
                   <div className="col-span-2">
                     <label className="block text-xs font-medium text-gray-600 mb-1">Assign to</label>
                     <select name="assigned_to" className={inputCls}>
                       <option value="">Assign to me</option>
-                      {profiles.filter(p => p.is_active).map(p => (
+                      {assignable.map(p => (
                         <option key={p.id} value={p.id}>{p.name}</option>
                       ))}
                     </select>

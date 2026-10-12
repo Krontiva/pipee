@@ -3,14 +3,63 @@
 import { useState, useTransition } from 'react'
 import { Plus, UserCheck, UserX, Loader2 } from 'lucide-react'
 import { inviteUser, toggleUserActive } from '@/lib/actions/admin'
+import { setUserProducts } from '@/lib/actions/products'
 import { initials } from '@/lib/utils'
-import type { Profile } from '@/types'
+import type { Product, Profile } from '@/types'
 
 interface UserManagementProps {
   profiles: Profile[]
+  products: Product[]
+  memberships: { product_id: string; user_id: string }[]
 }
 
-export function UserManagement({ profiles }: UserManagementProps) {
+// Tick which products a rep can work on. Saves as soon as a box changes.
+function ProductAccess({ userId, products, memberships }: {
+  userId: string
+  products: Product[]
+  memberships: { product_id: string; user_id: string }[]
+}) {
+  const saved = memberships.filter(m => m.user_id === userId).map(m => m.product_id)
+  const [selected, setSelected] = useState<string[]>(saved)
+  const [error, setError] = useState<string | null>(null)
+  const [isPending, startTransition] = useTransition()
+
+  function toggle(productId: string) {
+    const next = selected.includes(productId) ? selected.filter(id => id !== productId) : [...selected, productId]
+    const previous = selected
+    setSelected(next)
+    setError(null)
+    startTransition(async () => {
+      const result = await setUserProducts(userId, next)
+      if (result.error) { setSelected(previous); setError(result.error) }
+    })
+  }
+
+  if (products.length === 0) return null
+
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+      <span className="text-[11px] text-gray-400">Products:</span>
+      {products.map(p => (
+        <label key={p.id} className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={selected.includes(p.id)}
+            onChange={() => toggle(p.id)}
+            disabled={isPending}
+            className="rounded border-slate-300"
+          />
+          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }} />
+          {p.name}
+        </label>
+      ))}
+      {selected.length === 0 && <span className="text-[11px] text-amber-600">No access: this rep sees no deals</span>}
+      {error && <span className="text-[11px] text-red-600">{error}</span>}
+    </div>
+  )
+}
+
+export function UserManagement({ profiles, products, memberships }: UserManagementProps) {
   const [showForm, setShowForm] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -79,6 +128,20 @@ export function UserManagement({ profiles }: UserManagementProps) {
               </select>
             </div>
           </div>
+          {products.length > 0 && (
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Products (BD reps only)</label>
+              <div className="flex flex-wrap gap-x-4 gap-y-1">
+                {products.map(p => (
+                  <label key={p.id} className="flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer">
+                    <input type="checkbox" name="product_ids" value={p.id} defaultChecked className="rounded border-slate-300" />
+                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }} />
+                    {p.name}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
           {error && <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
           <div className="flex gap-3">
             <button type="button" onClick={() => setShowForm(false)}
@@ -115,7 +178,8 @@ export function UserManagement({ profiles }: UserManagementProps) {
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">BD Reps ({bdReps.length})</p>
         <div className="space-y-2">
           {bdReps.map(p => (
-            <div key={p.id} className="flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-lg">
+            <div key={p.id} className="p-3 bg-white border border-slate-200 rounded-lg">
+             <div className="flex items-center gap-3">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold shrink-0 ${p.is_active ? 'bg-violet-600 text-white' : 'bg-slate-200 text-slate-400'}`}>
                 {initials(p.name)}
               </div>
@@ -141,6 +205,10 @@ export function UserManagement({ profiles }: UserManagementProps) {
                     : <><UserCheck size={12} /> Activate</>
                 }
               </button>
+             </div>
+             <div className="pl-11">
+              <ProductAccess userId={p.id} products={products} memberships={memberships} />
+             </div>
             </div>
           ))}
           {bdReps.length === 0 && (

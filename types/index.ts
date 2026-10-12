@@ -18,6 +18,17 @@ export const CURRENCIES: Currency[] = [
   { code: 'NGN', symbol: '₦',    name: 'Nigerian Naira', locale: 'en-NG' },
 ]
 
+export interface Product {
+  id: string
+  name: string
+  code: string
+  description: string | null
+  color: string
+  currency: string
+  is_active: boolean
+  created_at: string
+}
+
 export interface Profile {
   id: string
   name: string
@@ -47,6 +58,7 @@ export const BLOCKER_OPTIONS: { key: BlockerKey; name: string; meaning: string; 
 
 export interface Opportunity {
   id: string
+  product_id: string
   title: string
   company_name: string
   sector: string | null
@@ -152,6 +164,7 @@ export interface OutreachEntry {
 
 export interface Sector {
   id: string
+  product_id: string
   name: string
   description: string | null
   icp_notes: string | null
@@ -198,7 +211,7 @@ export const SUB_STAGES: Record<number, SubStageItem[]> = {
     { key: '3e', label: 'Demo date confirmed',        description: 'Demonstration or presentation date agreed and blocked in the calendar', required: true  },
   ],
   4: [
-    { key: '4a', label: 'Demo delivered',             description: 'Tailored Krongage solution demonstration presented to stakeholders', required: true  },
+    { key: '4a', label: 'Demo delivered',             description: 'Tailored solution demonstration presented to stakeholders', required: true  },
     { key: '4b', label: 'Stakeholder feedback noted', description: 'Responses, objections, and concerns from all attendees documented', required: true  },
     { key: '4c', label: 'Technical questions resolved', description: 'All open integration or technical questions have clear answers', required: true  },
     { key: '4d', label: 'Deal value entered',         description: 'Pricing parameters are clear — deal value set in the system', required: true  },
@@ -266,7 +279,7 @@ export const STAGE_META: Record<number, {
   },
   4: {
     name: 'Solution Design & Demonstration',
-    purpose: 'Present a tailored Krongage solution',
+    purpose: 'Present a tailored solution',
     targetDays: 10,
     exitCriteria: [
       'Stakeholder feedback documented',

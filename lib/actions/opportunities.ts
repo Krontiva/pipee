@@ -14,9 +14,37 @@ export async function createOpportunity(formData: FormData) {
 
   const assignedTo = formData.get('assigned_to') as string || user.id
 
+  const productId = formData.get('product_id') as string
+  if (!productId) return { error: 'Choose a product for this deal.' }
+
+  // RLS only returns products this person can access.
+  const { data: product } = await supabase
+    .from('products')
+    .select('id, is_active')
+    .eq('id', productId)
+    .maybeSingle()
+  if (!product) return { error: 'You do not have access to that product.' }
+  if (!product.is_active) return { error: 'That product is switched off.' }
+
+  // The owner must be able to work on this product.
+  if (assignedTo !== user.id) {
+    const { data: assignee } = await supabase.from('profiles').select('role').eq('id', assignedTo).maybeSingle()
+    if (!assignee) return { error: 'Assignee not found.' }
+    if (assignee.role !== 'admin') {
+      const { data: member } = await supabase
+        .from('product_members')
+        .select('user_id')
+        .eq('product_id', productId)
+        .eq('user_id', assignedTo)
+        .maybeSingle()
+      if (!member) return { error: 'That person is not assigned to this product.' }
+    }
+  }
+
   const { data, error } = await supabase
     .from('opportunities')
     .insert({
+      product_id: productId,
       title: formData.get('title') as string,
       company_name: formData.get('company_name') as string,
       sector: formData.get('sector') as string || null,
@@ -209,6 +237,22 @@ export async function updateOpportunity(id: string, updates: Record<string, unkn
   if ('assigned_to' in updates) {
     if (profile.role !== 'admin') return { error: 'Only an admin can reassign a deal.' }
     safe.assigned_to = updates.assigned_to
+
+    // The new owner must be able to work on this deal's product.
+    if (typeof updates.assigned_to === 'string' && updates.assigned_to) {
+      const { data: opp } = await supabase.from('opportunities').select('product_id').eq('id', id).maybeSingle()
+      const { data: assignee } = await supabase.from('profiles').select('role').eq('id', updates.assigned_to).maybeSingle()
+      if (!opp || !assignee) return { error: 'Deal or assignee not found.' }
+      if (assignee.role !== 'admin') {
+        const { data: member } = await supabase
+          .from('product_members')
+          .select('user_id')
+          .eq('product_id', opp.product_id)
+          .eq('user_id', updates.assigned_to)
+          .maybeSingle()
+        if (!member) return { error: 'That person is not assigned to this deal’s product.' }
+      }
+    }
   }
   if (Object.keys(safe).length === 0) return { error: 'Nothing to update.' }
 

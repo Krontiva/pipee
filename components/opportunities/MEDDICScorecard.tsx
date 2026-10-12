@@ -6,21 +6,23 @@ import { cn } from '@/lib/utils'
 import { Loader2 } from 'lucide-react'
 import type { MEDDICScore } from '@/types'
 
-const FIELDS = [
-  { key: 'metrics_evidence', label: 'Metrics', question: 'What measurable outcome will Krongage deliver?', placeholder: 'e.g. Reduce customer churn by 20% within 6 months' },
+const fieldsFor = (product: string) => [
+  { key: 'metrics_evidence', label: 'Metrics', question: `What measurable outcome will ${product} deliver?`, placeholder: 'e.g. Reduce customer churn by 20% within 6 months' },
   { key: 'economic_buyer_name', label: 'Economic Buyer', question: 'Who has the budget authority to sign?', placeholder: 'Name + title, e.g. Jane Doe, CFO' },
   { key: 'decision_criteria', label: 'Decision Criteria', question: 'How will the prospect choose a solution?', placeholder: 'e.g. Functional fit, price, integration with existing systems' },
   { key: 'decision_process', label: 'Decision Process', question: 'What steps lead to a signed contract?', placeholder: 'e.g. Procurement → IT review → Board sign-off' },
   { key: 'identified_pain', label: 'Identified Pain', question: 'What problem is the prospect trying to fix today?', placeholder: 'e.g. Manual customer feedback collection causing 3-day lag' },
-  { key: 'champion_name', label: 'Champion', question: 'Who internally will advocate for Krongage?', placeholder: 'Name + role, e.g. Kwame Asante, Head of CX' },
+  { key: 'champion_name', label: 'Champion', question: `Who internally will advocate for ${product}?`, placeholder: 'Name + role, e.g. Kwame Asante, Head of CX' },
 ] as const
 
 interface MEDDICScorecardProps {
   opportunityId: string
   score: MEDDICScore | null
+  productName?: string
 }
 
-export function MEDDICScorecard({ opportunityId, score }: MEDDICScorecardProps) {
+export function MEDDICScorecard({ opportunityId, score, productName = 'this product' }: MEDDICScorecardProps) {
+  const FIELDS = fieldsFor(productName)
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<Record<string, string>>({
     metrics_evidence: score?.metrics_evidence ?? '',

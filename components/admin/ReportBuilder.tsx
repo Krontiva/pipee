@@ -9,7 +9,7 @@ import { generateReport } from '@/lib/actions/reports'
 import { generatePptx } from '@/lib/actions/pptx'
 import { cn } from '@/lib/utils'
 import type { ReportFilters } from '@/lib/actions/reports'
-import type { Profile } from '@/types'
+import type { Product, Profile } from '@/types'
 
 // Safe inline bold renderer — splits on **text** markers, never injects raw HTML
 function BoldText({ text }: { text: string }) {
@@ -59,9 +59,10 @@ const REPORT_TYPES = [
 
 interface ReportBuilderProps {
   profiles: Profile[]
+  products: Product[]
 }
 
-export function ReportBuilder({ profiles }: ReportBuilderProps) {
+export function ReportBuilder({ profiles, products }: ReportBuilderProps) {
   const [isPending, startTransition] = useTransition()
   const [isPptxPending, startPptxTransition] = useTransition()
   const [report, setReport] = useState<string | null>(null)
@@ -71,6 +72,7 @@ export function ReportBuilder({ profiles }: ReportBuilderProps) {
 
   const [filters, setFilters] = useState<ReportFilters>({
     reportType: 'pipeline_summary',
+    productId: 'all',
     assignedTo: 'all',
     stage: 'all',
     status: 'all',
@@ -100,7 +102,7 @@ export function ReportBuilder({ profiles }: ReportBuilderProps) {
     const url  = URL.createObjectURL(blob)
     const a    = document.createElement('a')
     a.href = url
-    a.download = `krongage-report-${filters.reportType}-${new Date().toISOString().slice(0,10)}.md`
+    a.download = `${fileStem}-${filters.reportType}-${new Date().toISOString().slice(0,10)}.md`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -117,13 +119,14 @@ export function ReportBuilder({ profiles }: ReportBuilderProps) {
         const url   = URL.createObjectURL(blob)
         const a     = document.createElement('a')
         a.href = url
-        a.download = `krongage-report-${filters.reportType}-${new Date().toISOString().slice(0,10)}.pptx`
+        a.download = `${fileStem}-${filters.reportType}-${new Date().toISOString().slice(0,10)}.pptx`
         a.click()
         URL.revokeObjectURL(url)
       }
     })
   }
 
+  const fileStem = `${products.find(p => p.id === filters.productId)?.code ?? 'pipee'}-report`
   const bdReps = profiles.filter(p => p.role === 'bd_rep' && p.is_active)
 
   const inp = 'bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500'
@@ -160,6 +163,15 @@ export function ReportBuilder({ profiles }: ReportBuilderProps) {
       <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Filters</p>
         <div className="grid grid-cols-2 gap-3">
+          {/* Product */}
+          <div className="col-span-2">
+            <label className="block text-xs font-medium text-gray-600 mb-1">Product</label>
+            <select className={inp + ' w-full'} value={filters.productId ?? 'all'} onChange={e => set('productId', e.target.value)}>
+              <option value="all">All products</option>
+              {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+
           {/* BD Member */}
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">BD Member</label>

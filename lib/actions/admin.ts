@@ -41,6 +41,18 @@ export async function inviteUser(formData: FormData) {
     return { error: profileError.message }
   }
 
+  // Give a rep the products ticked on the form. Admins can already use every product.
+  const productIds = formData.getAll('product_ids').filter((v): v is string => typeof v === 'string' && v !== '')
+  if (role === 'bd_rep' && productIds.length > 0) {
+    const { error: memberError } = await adminClient
+      .from('product_members')
+      .insert(productIds.map(product_id => ({ product_id, user_id: newUser.user.id })))
+    if (memberError) {
+      revalidatePath('/admin')
+      return { error: `User created, but product access could not be saved (${memberError.message}). Set it from the team list.` }
+    }
+  }
+
   revalidatePath('/admin')
   return { success: true }
 }
@@ -72,6 +84,9 @@ export async function upsertSectorAction(formData: FormData): Promise<void> {
   const supabase = guard.supabase
   const id = formData.get('id') as string | null
 
+  const productId = formData.get('product_id') as string
+  if (!id && !productId) return
+
   const sectorData = {
     name: formData.get('name') as string,
     description: formData.get('description') as string || null,
@@ -81,7 +96,7 @@ export async function upsertSectorAction(formData: FormData): Promise<void> {
 
   await (id
     ? supabase.from('sectors').update(sectorData).eq('id', id)
-    : supabase.from('sectors').insert(sectorData))
+    : supabase.from('sectors').insert({ ...sectorData, product_id: productId }))
 
   revalidatePath('/admin')
 }

@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useTransition, useState, useEffect } from 'react'
 import { cn, initials } from '@/lib/utils'
 import { logout } from '@/lib/actions/auth'
+import { ProductSwitcher } from '@/components/shared/ProductSwitcher'
 import type { Profile } from '@/types'
 import {
   LayoutDashboard,
@@ -28,7 +29,7 @@ const NAV_ITEMS = [
   { href: '/walkthrough',   label: 'Get Started', icon: BookOpen,        adminOnly: false },
 ]
 
-const STORAGE_KEY = 'krongage-sidebar-collapsed'
+const STORAGE_KEY = 'pipee-sidebar-collapsed'
 
 interface SidebarProps {
   blockerCount?: number
@@ -111,6 +112,8 @@ export function Sidebar({ profile, blockerCount = 0 }: SidebarProps) {
           }
         </button>
       </div>
+
+      <ProductSwitcher collapsed={isCollapsed} />
 
       {/* Nav */}
       <nav className={cn('flex-1 py-4 space-y-0.5 overflow-y-auto', isCollapsed ? 'px-2' : 'px-3')}>

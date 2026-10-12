@@ -17,6 +17,8 @@ import { EditDealButton } from './EditDealButton'
 import { StageProgress } from './StageProgress'
 import { SubStageChecklist } from './SubStageChecklist'
 import { MEDDICScorecard } from './MEDDICScorecard'
+import { ProductTag } from '@/components/shared/ProductTag'
+import { useProduct } from '@/components/shared/ProductProvider'
 import { ActivityFeed } from './ActivityFeed'
 import { DiscoveryBriefForm } from './DiscoveryBriefForm'
 import { ProposalTracker } from './ProposalTracker'
@@ -78,6 +80,7 @@ export function OpportunityDetail({
   opp, profile, meddic, activities, brief, proposals,
   contacts, sectors, profiles, subStageProgress, reviewerName,
 }: OpportunityDetailProps) {
+  const { getProduct } = useProduct()
   const [tab, setTab] = useState<Tab>('overview')
   const [showNotifs, setShowNotifs] = useState(false)
   const [showStageModal, setShowStageModal] = useState(false)
@@ -128,6 +131,7 @@ export function OpportunityDetail({
               <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                 <StageTag stage={opp.stage} />
                 <StatusBadge status={opp.status} />
+                <ProductTag productId={opp.product_id} />
                 {stalled && (
                   <button
                     disabled={isPendingClearStalled}
@@ -385,7 +389,7 @@ export function OpportunityDetail({
             {tab === 'meddic' && (
               <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">MEDDIC Score</p>
-                <MEDDICScorecard opportunityId={opp.id} score={meddic} />
+                <MEDDICScorecard opportunityId={opp.id} score={meddic} productName={getProduct(opp.product_id)?.name} />
               </div>
             )}
 

@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { X, Loader2, Save } from 'lucide-react'
 import { updateOpportunity } from '@/lib/actions/opportunities'
+import { useProduct } from '@/components/shared/ProductProvider'
 import { CURRENCIES, STAGE_META } from '@/types'
 import type { Opportunity, Profile, Sector } from '@/types'
 
@@ -22,6 +23,9 @@ export function EditDealModal({ opportunity, profiles, sectors, currentUserRole,
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+  const { isMember } = useProduct()
+  const productSectors = sectors.filter(s => s.product_id === opportunity.product_id)
+  const assignable = profiles.filter(p => p.is_active && (p.role === 'admin' || isMember(p.id, opportunity.product_id)))
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -93,7 +97,7 @@ export function EditDealModal({ opportunity, profiles, sectors, currentUserRole,
               <label className={lbl}>Sector</label>
               <select name="sector" defaultValue={opportunity.sector ?? ''} className={inp}>
                 <option value="">Select sector</option>
-                {sectors.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                {productSectors.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
               </select>
             </div>
 
@@ -102,7 +106,7 @@ export function EditDealModal({ opportunity, profiles, sectors, currentUserRole,
               <div>
                 <label className={lbl}>Assigned To</label>
                 <select name="assigned_to" defaultValue={opportunity.assigned_to ?? ''} className={inp}>
-                  {profiles.filter(p => p.is_active).map(p => (
+                  {assignable.map(p => (
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
                 </select>
