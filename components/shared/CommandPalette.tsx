@@ -166,7 +166,7 @@ export function CommandPalette() {
         </div>
 
         {/* Results */}
-        <div className="max-h-[420px] overflow-y-auto">
+        <div className="max-h-[min(420px,60vh)] overflow-y-auto">
 
           {/* Nav pages */}
           {filteredNav.length > 0 && (

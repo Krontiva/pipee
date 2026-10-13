@@ -106,7 +106,7 @@ export function DealOutcomeBar({ opportunityId, currentStatus, isAdmin = false }
       {/* Confirmation Modal */}
       {modal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-xl w-full max-w-sm shadow-xl">
+          <div className="bg-white border border-slate-200 rounded-xl w-full max-w-sm shadow-xl max-h-[90vh] overflow-y-auto">
 
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
               <h3 className="font-semibold text-gray-900">

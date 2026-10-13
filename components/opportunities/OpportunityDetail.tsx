@@ -427,7 +427,7 @@ export function OpportunityDetail({
       {/* ── NOTIFICATIONS MODAL ── */}
       {showNotifs && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-start justify-end p-4">
-          <div className="bg-white border border-slate-200 rounded-xl w-full max-w-sm shadow-2xl mt-16 mr-2">
+          <div className="bg-white border border-slate-200 rounded-xl w-full max-w-sm shadow-2xl mt-16 mr-2 max-h-[calc(100vh-6rem)] overflow-y-auto">
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
               <div>
                 <h3 className="font-semibold text-gray-900 text-sm">Stage Guidance</h3>

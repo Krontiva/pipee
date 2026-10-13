@@ -75,14 +75,14 @@ export function TopNav({ title, profile, sectors = [], profiles = [] }: TopNavPr
       {/* New Deal Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-xl w-full max-w-lg shadow-xl">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+          <div className="bg-white border border-slate-200 rounded-xl w-full max-w-lg shadow-xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
               <h2 className="text-gray-900 font-semibold">New Opportunity</h2>
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
                 <X size={18} />
               </button>
             </div>
-            <form onSubmit={handleCreate} className="p-6 space-y-4">
+            <form onSubmit={handleCreate} className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 {products.length > 0 && (
                   <div className="col-span-2">

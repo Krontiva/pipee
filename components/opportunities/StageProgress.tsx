@@ -82,14 +82,14 @@ export function StageProgress({ opportunity, completedProgress }: StageProgressP
       {/* Advance modal */}
       {showModal && targetStage && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-xl w-full max-w-md shadow-xl">
+          <div className="bg-white border border-slate-200 rounded-xl w-full max-w-md shadow-xl max-h-[90vh] flex flex-col">
 
             <div className="px-6 py-4 border-b border-slate-200">
               <h3 className="text-gray-900 font-semibold">Advance to Stage {targetStage}</h3>
               <p className="text-gray-400 text-sm mt-0.5">{currentMeta?.name}</p>
             </div>
 
-            <div className="px-6 py-5 space-y-4 max-h-[60vh] overflow-y-auto">
+            <div className="px-6 py-5 space-y-4 flex-1 min-h-0 overflow-y-auto">
 
               {/* Exit criteria */}
               <div>
@@ -157,7 +157,7 @@ export function StageProgress({ opportunity, completedProgress }: StageProgressP
               )}
             </div>
 
-            <div className="flex gap-3 px-6 pb-5">
+            <div className="flex gap-3 px-6 pb-5 shrink-0">
               <button onClick={() => setShowModal(false)}
                 className="flex-1 border border-slate-200 text-gray-500 hover:text-gray-800 text-sm font-medium py-2 rounded-lg transition-colors">
                 Cancel
