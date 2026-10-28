@@ -68,7 +68,9 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  if (!user && !pathname.startsWith('/login')) {
+  const isPublic = ['/login', '/forgot-password', '/auth/callback'].some(p => pathname.startsWith(p))
+
+  if (!user && !isPublic) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 

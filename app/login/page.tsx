@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { login } from '@/lib/actions/auth'
 import { Loader2 } from 'lucide-react'
 
@@ -46,9 +47,14 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Password
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-sm font-medium text-gray-700">
+                Password
+              </label>
+              <Link href="/forgot-password" className="text-xs text-indigo-600 hover:text-indigo-500">
+                Forgot password?
+              </Link>
+            </div>
             <input
               name="password"
               type="password"
