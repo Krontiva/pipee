@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { Check, ChevronRight, AlertTriangle, Loader2, Lock } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { STAGE_META, STAGE_COLORS, SUB_STAGES } from '@/types'
+import { STAGE_META, SUB_STAGES } from '@/types'
 import { advanceStage } from '@/lib/actions/opportunities'
 import type { Opportunity, SubStageProgress } from '@/types'
 

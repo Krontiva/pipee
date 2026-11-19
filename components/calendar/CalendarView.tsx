@@ -81,13 +81,12 @@ function EventChip({
 
 // ─── Month view ───────────────────────────────────────────────────────────────
 function MonthView({
-  current, events, selectedDay, onSelectDay, onNavigate,
+  current, events, selectedDay, onSelectDay,
 }: {
   current: Date
   events: CalEvent[]
   selectedDay: Date | null
   onSelectDay: (d: Date) => void
-  onNavigate: (d: Date) => void
 }) {
   const router = useRouter()
 
@@ -565,7 +564,6 @@ export function CalendarView({ opportunities }: CalendarViewProps) {
               events={events}
               selectedDay={selectedDay}
               onSelectDay={onSelectDay}
-              onNavigate={setCurrent}
             />
           )}
           {view === 'week' && (

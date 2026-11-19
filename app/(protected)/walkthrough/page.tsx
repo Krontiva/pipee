@@ -4,8 +4,8 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ChevronRight, ChevronLeft, LayoutDashboard, Columns3, Search,
-  CalendarDays, CheckCircle2, Circle, ArrowRight, Zap, Target,
-  Users, FileText, BarChart3, Bell, Plus, MessageSquare,
+  CalendarDays, CheckCircle2, ArrowRight,
+  Users, FileText, BarChart3, Bell, MessageSquare,
   Phone, Mail, Star, Trophy, AlertTriangle, Sparkles, BookOpen,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'

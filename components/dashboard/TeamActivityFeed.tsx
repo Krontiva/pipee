@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { AlertTriangle, Calendar, CheckCircle2, Clock, TrendingUp } from 'lucide-react'
-import { cn, formatDate, initials, isOverdue } from '@/lib/utils'
+import { formatDate, initials, isOverdue } from '@/lib/utils'
 import type { Opportunity, Profile } from '@/types'
 
 interface TeamActivityFeedProps {

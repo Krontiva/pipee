@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { X, Loader2, Save } from 'lucide-react'
 import { updateOpportunity } from '@/lib/actions/opportunities'
 import { useProduct } from '@/components/shared/ProductProvider'
-import { CURRENCIES, STAGE_META } from '@/types'
+import { CURRENCIES } from '@/types'
 import type { Opportunity, Profile, Sector } from '@/types'
 
 interface EditDealModalProps {

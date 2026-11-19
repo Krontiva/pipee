@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Trophy, ThumbsDown, Ban, ChevronDown, Loader2, X, AlertTriangle } from 'lucide-react'
+import { Trophy, ThumbsDown, Ban, Loader2, X, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { markWonLost, disqualifyOpportunity, reopenOpportunity } from '@/lib/actions/opportunities'
 import type { OpportunityStatus, DisqualificationReason } from '@/types'

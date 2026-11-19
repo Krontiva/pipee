@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Phone, Mail, Users, FileText, ArrowRight, Radio, Plus, Loader2, Pencil, Trash2, Check, X, AlertTriangle, Calendar, ChevronRight } from 'lucide-react'
+import { Phone, Mail, Users, FileText, ArrowRight, Radio, Plus, Loader2, Pencil, Trash2, Check, X, Calendar } from 'lucide-react'
 import { cn, formatDate, isOverdue } from '@/lib/utils'
 import { addActivity, updateActivity, deleteActivity, updateNextAction } from '@/lib/actions/opportunities'
 import type { Activity, ActivityType } from '@/types'

@@ -24,8 +24,6 @@ const C = {
   stage: ['64748B','3B82F6','8B5CF6','F59E0B','F97316','22C55E','10B981'],
 }
 
-function hex(c: string) { return `#${c}` }
-
 // ── Slide helpers ─────────────────────────────────────────────────────────────
 function addSlideHeader(slide: PptxGenJS.Slide, title: string, subtitle?: string) {
   // Top bar

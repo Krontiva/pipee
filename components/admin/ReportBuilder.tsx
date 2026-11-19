@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from 'react'
 import {
-  BarChart3, Loader2, Download, RefreshCw, ChevronDown,
-  User, Users, FileText, TrendingUp, Building2, Presentation,
+  BarChart3, Loader2, Download, RefreshCw,
+  User, FileText, Building2, Presentation,
 } from 'lucide-react'
 import { generateReport } from '@/lib/actions/reports'
 import { generatePptx } from '@/lib/actions/pptx'
