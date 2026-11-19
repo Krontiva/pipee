@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useTransition, useState, useEffect } from 'react'
 import { cn, initials } from '@/lib/utils'
 import { logout } from '@/lib/actions/auth'
+import { setEmailNotifications } from '@/lib/actions/profile'
 import { ProductSwitcher } from '@/components/shared/ProductSwitcher'
 import type { Profile } from '@/types'
 import {
@@ -14,6 +15,8 @@ import {
   CalendarDays,
   Users,
   LogOut,
+  Bell,
+  BellOff,
   ChevronRight,
   Loader2,
   BookOpen,
@@ -34,9 +37,10 @@ const STORAGE_KEY = 'pipee-sidebar-collapsed'
 interface SidebarProps {
   blockerCount?: number
   profile: Profile
+  emailNotifications?: boolean
 }
 
-export function Sidebar({ profile, blockerCount = 0 }: SidebarProps) {
+export function Sidebar({ profile, blockerCount = 0, emailNotifications = true }: SidebarProps) {
   const pathname = usePathname()
   const [isPending, startTransition] = useTransition()
   const [collapsed, setCollapsed] = useState(false)
@@ -55,6 +59,12 @@ export function Sidebar({ profile, blockerCount = 0 }: SidebarProps) {
       const next = !c
       localStorage.setItem(STORAGE_KEY, String(next))
       return next
+    })
+  }
+
+  function toggleNotifications() {
+    startTransition(async () => {
+      await setEmailNotifications(!emailNotifications)
     })
   }
 
@@ -205,6 +215,19 @@ export function Sidebar({ profile, blockerCount = 0 }: SidebarProps) {
               <p className="text-gray-400 text-xs truncate capitalize">{profile.role.replace('_', ' ')}</p>
             </div>
           )}
+
+          {/* Email alerts on/off */}
+          <button
+            onClick={toggleNotifications}
+            disabled={isPending}
+            title={emailNotifications ? 'Daily email digest is on — click to turn off' : 'Daily email digest is off — click to turn on'}
+            className={cn(
+              'transition-colors disabled:opacity-50',
+              emailNotifications ? 'text-indigo-500 hover:text-indigo-700' : 'text-gray-400 hover:text-gray-600'
+            )}
+          >
+            {emailNotifications ? <Bell size={15} /> : <BellOff size={15} />}
+          </button>
 
           {/* Logout */}
           <button

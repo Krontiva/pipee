@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { sendEmail } from '@/lib/email'
 
 export async function login(formData: FormData) {
   const supabase = await createClient()
@@ -54,24 +55,15 @@ export async function requestPasswordReset(formData: FormData) {
 }
 
 async function sendPasswordResetEmail(to: string, link: string) {
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: process.env.RESEND_FROM_EMAIL,
-      to,
-      subject: 'Reset your Pipee password',
-      html: `
+  await sendEmail({
+    to,
+    subject: 'Reset your Pipee password',
+    html: `
         <p>We received a request to reset your Pipee password.</p>
         <p><a href="${link}">Choose a new password</a></p>
         <p>This link expires in an hour. If you didn't ask for this, you can ignore this email.</p>
       `,
-    }),
   })
-  if (!res.ok) throw new Error(`Resend ${res.status}: ${await res.text()}`)
 }
 
 export async function updatePassword(formData: FormData) {

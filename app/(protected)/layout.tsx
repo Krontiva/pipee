@@ -39,7 +39,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <ProductProvider products={products} currentId={currentId} memberships={memberships ?? []}>
       <div className="flex h-screen overflow-hidden">
-        <Sidebar profile={profile} blockerCount={blockerCount} />
+        <Sidebar profile={profile} blockerCount={blockerCount} emailNotifications={user.user_metadata?.email_notifications !== false} />
         <main className="flex-1 flex flex-col overflow-hidden bg-slate-50">
           {children}
         </main>

@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { verifyHubSession, SESSION_COOKIE, HubSessionError } from '@krontiva/hub-contract'
 import { establishHubSsoSession } from '@/lib/hub-sso'
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -64,7 +64,7 @@ export async function middleware(request: NextRequest) {
         }
       }
     } catch (e) {
-      if (!(e instanceof HubSessionError)) console.error('[middleware] hub sso failed', e)
+      if (!(e instanceof HubSessionError)) console.error('[proxy] hub sso failed', e)
     }
   }
 
