@@ -13,6 +13,7 @@ import {
   Columns3,
   List,
   CalendarDays,
+  TrendingUp,
   Users,
   LogOut,
   Bell,
@@ -29,6 +30,7 @@ const NAV_ITEMS = [
   { href: '/pipeline',      label: 'Pipeline',    icon: Columns3,        adminOnly: false },
   { href: '/opportunities', label: 'All Deals',   icon: List,            adminOnly: true  },
   { href: '/calendar',      label: 'Calendar',    icon: CalendarDays,    adminOnly: false },
+  { href: '/analytics',     label: 'Analytics',   icon: TrendingUp,      adminOnly: true  },
   { href: '/walkthrough',   label: 'Get Started', icon: BookOpen,        adminOnly: false },
 ]
 
