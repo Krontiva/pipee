@@ -14,6 +14,7 @@ import {
   List,
   CalendarDays,
   TrendingUp,
+  ScrollText,
   Users,
   LogOut,
   Bell,
@@ -31,6 +32,7 @@ const NAV_ITEMS = [
   { href: '/opportunities', label: 'All Deals',   icon: List,            adminOnly: true  },
   { href: '/calendar',      label: 'Calendar',    icon: CalendarDays,    adminOnly: false },
   { href: '/analytics',     label: 'Analytics',   icon: TrendingUp,      adminOnly: true  },
+  { href: '/audit',         label: 'Audit log',   icon: ScrollText,      adminOnly: true  },
   { href: '/walkthrough',   label: 'Get Started', icon: BookOpen,        adminOnly: false },
 ]
 

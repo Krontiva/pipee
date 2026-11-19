@@ -55,6 +55,7 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
           profiles={profiles ?? []}
           subStageProgress={subStageProgress ?? []}
           reviewerName={reviewerName}
+          watching={Array.isArray(user.user_metadata?.watching) && user.user_metadata.watching.includes(id)}
         />
       </div>
     </div>

@@ -20,6 +20,7 @@ import { MEDDICScorecard } from './MEDDICScorecard'
 import { ProductTag } from '@/components/shared/ProductTag'
 import { useProduct } from '@/components/shared/ProductProvider'
 import { ActivityFeed } from './ActivityFeed'
+import { WatchButton } from './WatchButton'
 import { DiscoveryBriefForm } from './DiscoveryBriefForm'
 import { ProposalTracker } from './ProposalTracker'
 import { ContactsSection } from './ContactsSection'
@@ -71,6 +72,7 @@ interface OpportunityDetailProps {
   profiles: Profile[]
   subStageProgress: SubStageProgress[]
   reviewerName?: string
+  watching?: boolean
 }
 
 type Tab = 'overview' | 'activity' | 'meddic' | 'documents'
@@ -78,7 +80,7 @@ type Tab = 'overview' | 'activity' | 'meddic' | 'documents'
 // ── Component ──────────────────────────────────────────────────────────────────
 export function OpportunityDetail({
   opp, profile, meddic, activities, brief, proposals,
-  contacts, sectors, profiles, subStageProgress, reviewerName,
+  contacts, sectors, profiles, subStageProgress, reviewerName, watching = false,
 }: OpportunityDetailProps) {
   const { getProduct } = useProduct()
   const [tab, setTab] = useState<Tab>('overview')
@@ -171,6 +173,7 @@ export function OpportunityDetail({
               </button>
 
               <DealOutcomeBar opportunityId={opp.id} currentStatus={opp.status} isAdmin={profile.role === 'admin'} />
+              <WatchButton opportunityId={opp.id} initialWatching={watching} />
               <EditDealButton opportunity={opp} profiles={profiles} sectors={sectors} currentUserRole={profile.role} />
 
               {(opp.value || opp.estimated_value) && (
@@ -381,6 +384,9 @@ export function OpportunityDetail({
                   activities={activities}
                   nextAction={opp.next_action}
                   nextActionDate={opp.next_action_date}
+                  mentionable={profiles
+                    .filter(p => p.is_active && p.id !== profile.id && (p.role === 'admin' || p.id === opp.assigned_to))
+                    .map(p => ({ id: p.id, name: p.name }))}
                 />
               </div>
             )}

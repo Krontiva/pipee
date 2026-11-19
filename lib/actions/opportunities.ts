@@ -1,6 +1,10 @@
 'use server'
 
 import { scheduleHubPush } from '@/lib/hub-push'
+import { scheduleDealNotice } from '@/lib/deal-notify'
+import { isReservedTitle, isSystemActivity } from '@/lib/audit'
+import { findMentions } from '@/lib/mentions'
+import { formatCurrency } from '@/lib/utils'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
@@ -189,6 +193,7 @@ export async function advanceStage(opportunityId: string, newStage: number) {
   revalidatePath(`/opportunities/${opportunityId}`)
   revalidatePath('/dashboard')
   scheduleHubPush(opportunityId)
+  scheduleDealNotice({ opportunityId, actorId: user.id, what: `${newStage < currentStage ? 'moved back to' : 'moved to'} Stage ${newStage}: ${STAGE_META[newStage]?.name}` })
   return { success: true }
 }
 
@@ -227,10 +232,10 @@ const EDITABLE_DEAL_FIELDS = [
   'value', 'estimated_value', 'currency', 'notes',
 ] as const
 
-export async function updateOpportunity(id: string, updates: Record<string, unknown>) {
+export async function updateOpportunity(id: string, updates: Record<string, unknown>, options?: { handoverNote?: string }) {
   const guard = await requireActiveUser()
   if ('error' in guard) return { error: guard.error }
-  const { supabase, profile } = guard
+  const { supabase, profile, user } = guard
 
   const safe: Record<string, unknown> = {}
   for (const key of EDITABLE_DEAL_FIELDS) {
@@ -259,14 +264,99 @@ export async function updateOpportunity(id: string, updates: Record<string, unkn
   }
   if (Object.keys(safe).length === 0) return { error: 'Nothing to update.' }
 
+  // What the deal looked like before, so the change can be recorded.
+  const { data: before } = await supabase
+    .from('opportunities')
+    .select('title, company_name, value, estimated_value, currency, assigned_to')
+    .eq('id', id)
+    .maybeSingle()
+
   const { data, error } = await supabase.from('opportunities').update(safe).eq('id', id).select('id')
   if (error) return { error: error.message }
   if (!data?.length) return { error: 'You do not have access to this deal.' }
+
+  if (before) await recordDealChanges(supabase, user.id, id, before, safe, options?.handoverNote)
+
   revalidatePath('/pipeline')
   revalidatePath(`/opportunities/${id}`)
   revalidatePath('/dashboard')
   scheduleHubPush(id)
   return { success: true }
+}
+
+interface DealSnapshot {
+  title: string
+  company_name: string
+  value: number | null
+  estimated_value: number | null
+  currency: string
+  assigned_to: string | null
+}
+
+// Writes one audit entry per meaningful change (value, currency, owner, name)
+// into the deal's activity feed, and emails the owner and watchers.
+async function recordDealChanges(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  actorId: string,
+  id: string,
+  before: DealSnapshot,
+  changed: Record<string, unknown>,
+  handoverNote?: string
+) {
+  const num = (v: unknown) => (v === null || v === undefined || v === '' ? null : Number(v))
+  const money = (v: number | null, cur: string) => (v === null ? '—' : formatCurrency(v, cur))
+  const newCur = typeof changed.currency === 'string' ? changed.currency : before.currency
+
+  const lines: string[] = []
+  if ('value' in changed && num(changed.value) !== num(before.value)) {
+    lines.push(`Changed value: ${money(num(before.value), before.currency)} → ${money(num(changed.value), newCur)}`)
+  }
+  if ('estimated_value' in changed && num(changed.estimated_value) !== num(before.estimated_value)) {
+    lines.push(`Changed estimated value: ${money(num(before.estimated_value), before.currency)} → ${money(num(changed.estimated_value), newCur)}`)
+  }
+  if ('currency' in changed && changed.currency !== before.currency) {
+    lines.push(`Changed currency: ${before.currency} → ${changed.currency}`)
+  }
+  if ('title' in changed && changed.title !== before.title) {
+    lines.push(`Changed deal title: "${before.title}" → "${changed.title}"`)
+  }
+  if ('company_name' in changed && changed.company_name !== before.company_name) {
+    lines.push(`Changed company name: "${before.company_name}" → "${changed.company_name}"`)
+  }
+
+  const newOwner = 'assigned_to' in changed ? ((changed.assigned_to as string | null) || null) : before.assigned_to
+  const ownerChanged = newOwner !== before.assigned_to
+  const note = handoverNote?.trim().slice(0, 1000) || null
+
+  let ownerLine: string | null = null
+  if (ownerChanged) {
+    const ids = [before.assigned_to, newOwner].filter((x): x is string => !!x)
+    const { data: people } = ids.length ? await supabase.from('profiles').select('id, name').in('id', ids) : { data: [] }
+    const nameOf = (pid: string | null) => (pid ? people?.find(p => p.id === pid)?.name ?? 'Unknown' : 'Unassigned')
+    ownerLine = `${nameOf(before.assigned_to)} → ${nameOf(newOwner)}`
+    lines.unshift(`Owner changed: ${ownerLine}`)
+  }
+  if (lines.length === 0) return
+
+  const now = new Date().toISOString()
+  await supabase.from('activities').insert(
+    lines.map(title => ({
+      opportunity_id: id,
+      user_id: actorId,
+      type: 'note',
+      title,
+      description: title.startsWith('Owner changed') ? note : null,
+      occurred_at: now,
+    }))
+  )
+
+  scheduleDealNotice({
+    opportunityId: id,
+    actorId,
+    what: ownerChanged ? `reassigned this deal (${ownerLine})` : 'changed this deal',
+    detail: [...lines.filter(l => !l.startsWith('Owner changed')), ...(note ? [`Handover note: ${note}`] : [])],
+    alsoNotify: ownerChanged ? [before.assigned_to, newOwner].filter((x): x is string => !!x) : undefined,
+  })
 }
 
 // Admin-only: put a won, lost or disqualified deal back into the pipeline.
@@ -293,6 +383,7 @@ export async function reopenOpportunity(id: string) {
   revalidatePath(`/opportunities/${id}`)
   revalidatePath('/dashboard')
   scheduleHubPush(id)
+  scheduleDealNotice({ opportunityId: id, actorId: user.id, what: 'reopened this deal' })
   return { success: true }
 }
 
@@ -320,6 +411,7 @@ export async function disqualifyOpportunity(id: string, reason: Disqualification
   revalidatePath(`/opportunities/${id}`)
   revalidatePath('/dashboard')
   scheduleHubPush(id)
+  scheduleDealNotice({ opportunityId: id, actorId: user.id, what: `disqualified this deal (${reason.replace('_', ' ')})` })
   return { success: true }
 }
 
@@ -348,6 +440,7 @@ export async function markWonLost(id: string, outcome: 'won' | 'lost', notes?: s
   revalidatePath(`/opportunities/${id}`)
   revalidatePath('/dashboard')
   scheduleHubPush(id)
+  scheduleDealNotice({ opportunityId: id, actorId: user.id, what: `marked this deal as ${outcome.toUpperCase()}`, detail: notes ? [notes] : undefined })
   return { success: true }
 }
 
@@ -509,6 +602,7 @@ export async function setBlocker(opportunityId: string, blocker: BlockerKey, not
   revalidatePath('/pipeline')
   revalidatePath('/dashboard')
   scheduleHubPush(opportunityId)
+  scheduleDealNotice({ opportunityId, actorId: user.id, what: `flagged a blocker: ${label}`, detail: blocker === 'other' ? [text] : [option.meaning] })
   return { success: true, label }
 }
 
@@ -550,6 +644,10 @@ export async function updateActivity(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
 
+  const { data: existing } = await supabase.from('activities').select('type, title').eq('id', activityId).maybeSingle()
+  if (existing && isSystemActivity(existing)) return { error: 'System entries are part of the audit trail and cannot be edited.' }
+  if (data.type === 'stage_change' || isReservedTitle(data.title)) return { error: 'That title is reserved for automatic entries. Please word it differently.' }
+
   const { error } = await supabase
     .from('activities')
     .update(data)
@@ -564,6 +662,9 @@ export async function deleteActivity(activityId: string, opportunityId: string) 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
+
+  const { data: existing } = await supabase.from('activities').select('type, title').eq('id', activityId).maybeSingle()
+  if (existing && isSystemActivity(existing)) return { error: 'System entries are part of the audit trail and cannot be deleted.' }
 
   const { error } = await supabase.from('activities').delete().eq('id', activityId)
   if (error) return { error: error.message }
@@ -639,17 +740,47 @@ export async function addActivity(opportunityId: string, formData: FormData) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
 
+  const type = formData.get('type') as string
+  const title = formData.get('title') as string
+  const description = formData.get('description') as string || null
+  if (type === 'stage_change' || isReservedTitle(title)) {
+    return { error: 'That title is reserved for automatic entries. Please word it differently.' }
+  }
+
   const { error } = await supabase.from('activities').insert({
     opportunity_id: opportunityId,
     user_id: user.id,
-    type: formData.get('type') as string,
-    title: formData.get('title') as string,
-    description: formData.get('description') as string || null,
+    type,
+    title,
+    description,
     outcome: formData.get('outcome') as string || null,
     occurred_at: formData.get('occurred_at') as string || new Date().toISOString(),
   })
 
   if (error) return { error: error.message }
+
+  // @mentions: email anyone named who can open this deal (its owner and admins).
+  let mentioned: string[] = []
+  const text = `${title} ${description ?? ''}`
+  if (text.includes('@')) {
+    const [{ data: deal }, { data: people }] = await Promise.all([
+      supabase.from('opportunities').select('assigned_to').eq('id', opportunityId).maybeSingle(),
+      supabase.from('profiles').select('id, name, role').eq('is_active', true),
+    ])
+    const eligible = (people ?? []).filter(p => p.id !== user.id && (p.role === 'admin' || p.id === deal?.assigned_to))
+    const ids = findMentions(text, eligible)
+    if (ids.length > 0) {
+      mentioned = eligible.filter(p => ids.includes(p.id)).map(p => p.name)
+      scheduleDealNotice({
+        opportunityId,
+        actorId: user.id,
+        what: 'mentioned you in a note',
+        detail: [title, description].filter((x): x is string => !!x),
+        alsoNotify: ids,
+        onlyAlsoNotify: true,
+      })
+    }
+  }
 
   // If a next action was provided alongside the activity, update it on the opportunity
   const nextAction = formData.get('next_action') as string || null
@@ -664,5 +795,5 @@ export async function addActivity(opportunityId: string, formData: FormData) {
   }
 
   revalidatePath(`/opportunities/${opportunityId}`)
-  return { success: true }
+  return { success: true, mentioned }
 }

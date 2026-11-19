@@ -23,6 +23,8 @@ export function EditDealModal({ opportunity, profiles, sectors, currentUserRole,
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+  const [ownerId, setOwnerId] = useState(opportunity.assigned_to ?? '')
+  const ownerChanged = ownerId !== (opportunity.assigned_to ?? '')
   const { isMember } = useProduct()
   const productSectors = sectors.filter(s => s.product_id === opportunity.product_id)
   const assignable = profiles.filter(p => p.is_active && (p.role === 'admin' || isMember(p.id, opportunity.product_id)))
@@ -47,7 +49,9 @@ export function EditDealModal({ opportunity, profiles, sectors, currentUserRole,
     }
 
     startTransition(async () => {
-      const result = await updateOpportunity(opportunity.id, updates)
+      const result = await updateOpportunity(opportunity.id, updates, {
+        handoverNote: ownerChanged ? String(fd.get('handover_note') ?? '') : undefined,
+      })
       if (result.error) {
         setError(result.error)
       } else {
@@ -105,11 +109,21 @@ export function EditDealModal({ opportunity, profiles, sectors, currentUserRole,
             {currentUserRole === 'admin' && (
               <div>
                 <label className={lbl}>Assigned To</label>
-                <select name="assigned_to" defaultValue={opportunity.assigned_to ?? ''} className={inp}>
+                <select name="assigned_to" value={ownerId} onChange={e => setOwnerId(e.target.value)} className={inp}>
                   {assignable.map(p => (
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
                 </select>
+                {ownerChanged && (
+                  <div className="mt-3">
+                    <label className={lbl}>Handover note <span className="text-gray-400 font-normal">(optional — emailed to the new owner)</span></label>
+                    <textarea
+                      name="handover_note" rows={3} maxLength={1000}
+                      placeholder="Where things stand, who the contacts are, what to do next…"
+                      className={`${inp} resize-none`}
+                    />
+                  </div>
+                )}
               </div>
             )}
 

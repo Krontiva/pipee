@@ -1,11 +1,15 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Phone, Mail, Users, FileText, ArrowRight, Radio, Plus, Loader2, Pencil, Trash2, Check, X, Calendar } from 'lucide-react'
 import { cn, formatDate, isOverdue } from '@/lib/utils'
 import { addActivity, updateActivity, deleteActivity, updateNextAction } from '@/lib/actions/opportunities'
+import { isSystemActivity } from '@/lib/audit'
+import { MentionText } from './MentionText'
 import type { Activity, ActivityType } from '@/types'
+
+type Person = { id: string; name: string }
 
 const TYPE_ICONS: Record<ActivityType, React.ReactNode> = {
   call: <Phone size={12} />,
@@ -30,12 +34,15 @@ interface ActivityFeedProps {
   activities: Activity[]
   nextAction?: string | null
   nextActionDate?: string | null
+  /** People who can open this deal (its owner and admins), offered for @mentions. */
+  mentionable?: Person[]
 }
 
-function ActivityItem({ activity, opportunityId, onRefresh }: {
+function ActivityItem({ activity, opportunityId, onRefresh, mentionable }: {
   activity: Activity
   opportunityId: string
   onRefresh: () => void
+  mentionable: Person[]
 }) {
   const [editing, setEditing] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -49,7 +56,7 @@ function ActivityItem({ activity, opportunityId, onRefresh }: {
   })
 
   const inputCls = 'w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500'
-  const isSystemEntry = activity.type === 'stage_change'
+  const isSystemEntry = isSystemActivity(activity)
   const isNextActionLog = activity.type === 'note' && activity.title?.startsWith('Next action:')
 
   function handleSave() {
@@ -127,7 +134,7 @@ function ActivityItem({ activity, opportunityId, onRefresh }: {
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-2">
-          <p className="text-gray-800 text-sm font-medium">{activity.title}</p>
+          <p className="text-gray-800 text-sm font-medium"><MentionText text={activity.title} people={mentionable} /></p>
           <span className="text-gray-400 text-xs shrink-0">{formatDate(activity.occurred_at)}</span>
           {!isSystemEntry && (
             <div className="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
@@ -148,7 +155,7 @@ function ActivityItem({ activity, opportunityId, onRefresh }: {
             </div>
           )}
         </div>
-        {activity.description && <p className="text-gray-500 text-xs mt-0.5">{activity.description}</p>}
+        {activity.description && <p className="text-gray-500 text-xs mt-0.5 whitespace-pre-wrap"><MentionText text={activity.description} people={mentionable} /></p>}
         {activity.outcome && (
           <p className="text-gray-400 text-xs mt-0.5 flex items-center gap-1">
             <ArrowRight size={10} /> {activity.outcome}
@@ -257,7 +264,9 @@ function NextActionCard({ opportunityId, nextAction, nextActionDate, onRefresh, 
 }
 
 // ── Main Feed ──────────────────────────────────────────────────────────────────
-export function ActivityFeed({ opportunityId, activities, nextAction, nextActionDate }: ActivityFeedProps) {
+export function ActivityFeed({ opportunityId, activities, nextAction, nextActionDate, mentionable = [] }: ActivityFeedProps) {
+  const notesRef = useRef<HTMLTextAreaElement>(null)
+  const [notified, setNotified] = useState<string[]>([])
   const [showLogForm, setShowLogForm] = useState(false)
   const [showNextActionForm, setShowNextActionForm] = useState(false)
   const [isPending, startTransition] = useTransition()
@@ -276,6 +285,7 @@ export function ActivityFeed({ opportunityId, activities, nextAction, nextAction
       } else {
         setShowLogForm(false)
         form.reset()
+        setNotified(result.mentioned ?? [])
         router.refresh()
       }
     })
@@ -342,8 +352,28 @@ export function ActivityFeed({ opportunityId, activities, nextAction, nextAction
             <input name="title" required placeholder="e.g. Intro call with Head of CX" className={inputCls} />
           </div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Notes</label>
-            <textarea name="description" rows={2} placeholder="What happened?" className={`${inputCls} resize-none`} />
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs text-gray-500">Notes</label>
+              {mentionable.length > 0 && (
+                <select
+                  value=""
+                  onChange={e => {
+                    const name = e.target.value
+                    if (name && notesRef.current) {
+                      const el = notesRef.current
+                      el.value = `${el.value}${el.value && !el.value.endsWith(' ') ? ' ' : ''}@${name} `
+                      el.focus()
+                    }
+                  }}
+                  className="text-xs border border-slate-200 rounded px-1.5 py-0.5 bg-white text-gray-500"
+                  aria-label="Mention someone"
+                >
+                  <option value="">@ Mention…</option>
+                  {mentionable.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+                </select>
+              )}
+            </div>
+            <textarea ref={notesRef} name="description" rows={2} placeholder="What happened? Type @name to notify someone who can open this deal." className={`${inputCls} resize-none`} />
           </div>
           <div>
             <label className="block text-xs text-gray-500 mb-1">Outcome</label>
@@ -359,6 +389,12 @@ export function ActivityFeed({ opportunityId, activities, nextAction, nextAction
             </button>
           </div>
         </form>
+      )}
+
+      {notified.length > 0 && (
+        <p className="text-xs text-green-700 bg-green-50 border border-green-100 rounded-lg px-3 py-2 mt-2">
+          Emailed {notified.join(', ')} about this note.
+        </p>
       )}
 
       {/* Activity list with next action pinned at top */}
@@ -377,6 +413,7 @@ export function ActivityFeed({ opportunityId, activities, nextAction, nextAction
             key={activity.id}
             activity={activity}
             opportunityId={opportunityId}
+            mentionable={mentionable}
             onRefresh={() => router.refresh()}
           />
         ))}

@@ -2,24 +2,10 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getProductContext } from '@/lib/products'
 import { TopNav } from '@/components/shared/TopNav'
+import { fetchAll } from '@/lib/fetch-all'
 import { AnalyticsView } from '@/components/analytics/AnalyticsView'
 import { computeAnalytics, parseTargets, TARGETS_KEY } from '@/lib/analytics'
 import type { EventIn, OppIn } from '@/lib/analytics'
-
-const PAGE = 1000
-
-// Supabase returns at most 1000 rows per request, so read in pages.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function fetchAll<T>(build: () => any): Promise<T[]> {
-  const rows: T[] = []
-  for (let from = 0; ; from += PAGE) {
-    const { data, error } = await build().range(from, from + PAGE - 1)
-    if (error) throw new Error(error.message)
-    rows.push(...((data ?? []) as T[]))
-    if (!data || data.length < PAGE) break
-  }
-  return rows
-}
 
 export default async function AnalyticsPage() {
   const supabase = await createClient()
