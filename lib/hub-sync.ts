@@ -62,6 +62,60 @@ function stalledSince(stage: number, stageEnteredAt: string): string {
   return new Date(new Date(stageEnteredAt).getTime() + days * 86_400_000).toISOString()
 }
 
+const OPPORTUNITY_COLUMNS =
+  'id, title, company_name, sector, website, stage, status, assigned_to, value, currency, disqualification_reason, next_action, next_action_date, stage_entered_at, blocker, blocker_label, blocker_set_at, created_at, updated_at'
+
+// One opportunity as a Hub work item. Shared by the 15-minute reconciliation
+// (syncOpportunitiesToHub) and the instant push after a change
+// (pushOpportunityToHub), so Hub sees identical data whichever path delivered it.
+function toWorkItem(r: OpportunityRow & { assigned_to: string }, ownerName: string | null): HubWorkItem {
+  // Nothing stores status 'stalled' — it is derived from time in stage.
+  const stalled = r.status === 'active' && isStalled(r.stage, r.stage_entered_at)
+  const state = stalled ? 'blocked' : STATE_MAP[r.status]
+  const stateChangedAt = r.updated_at ?? r.created_at
+
+  return {
+    // Overwritten by HubClient with the client's own productId — required
+    // by the type, ignored in practice.
+    product_id: 'pipee',
+    external_id: r.id,
+    // Company name first — that's what a manager scans for, "title"
+    // alone (e.g. "Q4 renewal") is often meaningless without it.
+    title: `${r.company_name} — ${r.title}`,
+    state,
+    owner_id: r.assigned_to,
+    // Pipee hasn't adopted Hub's own user id as owner_id yet (that's the
+    // SSO integration work, still pending — see product_sso_integration_followup
+    // in Hub's memory). Until then, this name is what lets Hub's Monday
+    // View show a person instead of this raw Pipee-internal id.
+    owner_name: ownerName,
+    // No natural horizon here — Pipee's pipeline moves through numbered
+    // stages, not a now/next/later planning horizon.
+    horizon: null,
+    url: `${PIPEE_URL}/opportunities/${r.id}`,
+    opened_at: r.created_at,
+    state_changed_at: stateChangedAt,
+    // Approximation: the opportunity's last update, not necessarily the
+    // exact moment it went stalled (a later non-status-changing update
+    // would move this forward) — same caveat as RoadMap's hub-sync.
+    blocked_since: state === 'blocked' ? (stalled ? stalledSince(r.stage, r.stage_entered_at) : stateChangedAt) : null,
+    due_at: r.next_action_date,
+    closed_at: state === 'done' ? stateChangedAt : null,
+    meta: {
+      company_name: r.company_name,
+      sector: r.sector,
+      website: r.website,
+      stage: r.stage,
+      value: r.value,
+      currency: r.currency,
+      pipee_status: r.status,
+      disqualification_reason: r.disqualification_reason,
+      next_action: r.next_action,
+      blocker: activeBlocker(r)?.label ?? null,
+    },
+  }
+}
+
 export async function syncOpportunitiesToHub(): Promise<HubSyncResult> {
   const secret = process.env.PIPEE_HUB_SECRET
   if (!secret) throw new Error('PIPEE_HUB_SECRET is not set')
@@ -71,9 +125,7 @@ export async function syncOpportunitiesToHub(): Promise<HubSyncResult> {
   const [{ data: opportunities, error: oppError }, { data: profiles, error: profileError }] = await Promise.all([
     supabase
       .from('opportunities')
-      .select(
-        'id, title, company_name, sector, website, stage, status, assigned_to, value, currency, disqualification_reason, next_action, next_action_date, stage_entered_at, blocker, blocker_label, blocker_set_at, created_at, updated_at'
-      )
+      .select(OPPORTUNITY_COLUMNS)
       .returns<OpportunityRow[]>(),
     supabase.from('profiles').select('id, name').returns<{ id: string; name: string }[]>(),
   ])
@@ -88,53 +140,7 @@ export async function syncOpportunitiesToHub(): Promise<HubSyncResult> {
 
   const items: HubWorkItem[] = rows
     .filter((r): r is OpportunityRow & { assigned_to: string } => !!r.assigned_to)
-    .map(r => {
-      // Nothing stores status 'stalled' — it is derived from time in stage.
-      const stalled = r.status === 'active' && isStalled(r.stage, r.stage_entered_at)
-      const state = stalled ? 'blocked' : STATE_MAP[r.status]
-      const stateChangedAt = r.updated_at ?? r.created_at
-
-      return {
-        // Overwritten by HubClient with the client's own productId — required
-        // by the type, ignored in practice.
-        product_id: 'pipee',
-        external_id: r.id,
-        // Company name first — that's what a manager scans for, "title"
-        // alone (e.g. "Q4 renewal") is often meaningless without it.
-        title: `${r.company_name} — ${r.title}`,
-        state,
-        owner_id: r.assigned_to,
-        // Pipee hasn't adopted Hub's own user id as owner_id yet (that's the
-        // SSO integration work, still pending — see product_sso_integration_followup
-        // in Hub's memory). Until then, this name is what lets Hub's Monday
-        // View show a person instead of this raw Pipee-internal id.
-        owner_name: nameById.get(r.assigned_to) ?? null,
-        // No natural horizon here — Pipee's pipeline moves through numbered
-        // stages, not a now/next/later planning horizon.
-        horizon: null,
-        url: `${PIPEE_URL}/opportunities/${r.id}`,
-        opened_at: r.created_at,
-        state_changed_at: stateChangedAt,
-        // Approximation: the opportunity's last update, not necessarily the
-        // exact moment it went stalled (a later non-status-changing update
-        // would move this forward) — same caveat as RoadMap's hub-sync.
-        blocked_since: state === 'blocked' ? (stalled ? stalledSince(r.stage, r.stage_entered_at) : stateChangedAt) : null,
-        due_at: r.next_action_date,
-        closed_at: state === 'done' ? stateChangedAt : null,
-        meta: {
-          company_name: r.company_name,
-          sector: r.sector,
-          website: r.website,
-          stage: r.stage,
-          value: r.value,
-          currency: r.currency,
-          pipee_status: r.status,
-          disqualification_reason: r.disqualification_reason,
-          next_action: r.next_action,
-          blocker: activeBlocker(r)?.label ?? null,
-        },
-      }
-    })
+    .map(r => toWorkItem(r, nameById.get(r.assigned_to) ?? null))
 
   const { valid, invalid } = partitionWorkItems(items)
 
@@ -161,5 +167,42 @@ export async function syncOpportunitiesToHub(): Promise<HubSyncResult> {
     delivery: result.ok
       ? { ok: true, status: result.status }
       : { ok: false, status: result.status, error: result.error },
+  }
+}
+
+// Push a single deal to Hub right after it changes, so Hub reflects it within
+// seconds instead of waiting for the next reconciliation. Hub upserts on
+// (product_id, external_id) and never deletes, so one item is always safe to send.
+//
+// Never throws and never blocks the caller: if this fails (Hub down, bad
+// signature) the next reconciliation run delivers the same data, so the cost is
+// freshness, not data. A deal with no owner can't be shown on Hub's per-person
+// board, so it is skipped, same as the reconciliation.
+export async function pushOpportunityToHub(opportunityId: string): Promise<void> {
+  const secret = process.env.PIPEE_HUB_SECRET
+  if (!secret) return // not configured (e.g. local dev)
+
+  try {
+    const supabase = supabaseAdmin()
+    const { data: row, error } = await supabase
+      .from('opportunities')
+      .select(OPPORTUNITY_COLUMNS)
+      .eq('id', opportunityId)
+      .maybeSingle<OpportunityRow>()
+    if (error) throw new Error(error.message)
+    if (!row || !row.assigned_to) return
+
+    const { data: owner } = await supabase.from('profiles').select('name').eq('id', row.assigned_to).maybeSingle()
+
+    const { valid, invalid } = partitionWorkItems([toWorkItem(row as OpportunityRow & { assigned_to: string }, owner?.name ?? null)])
+    if (invalid.length > 0) {
+      console.warn('[hub-push] deal failed local validation', opportunityId, invalid[0].reason)
+      return
+    }
+
+    const result = await new HubClient({ productId: 'pipee', secret }).sendWorkItems(valid)
+    if (!result.ok) console.error('[hub-push] Hub rejected the update; reconciliation will retry', opportunityId, result.status, result.error)
+  } catch (e) {
+    console.error('[hub-push] failed; reconciliation will retry', opportunityId, e)
   }
 }

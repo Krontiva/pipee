@@ -1,5 +1,6 @@
 'use server'
 
+import { scheduleHubPush } from '@/lib/hub-push'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
@@ -92,6 +93,7 @@ export async function createOpportunity(formData: FormData) {
   revalidatePath('/pipeline')
   revalidatePath('/opportunities')
   revalidatePath('/dashboard')
+  scheduleHubPush(data.id)
   return { data }
 }
 
@@ -186,6 +188,7 @@ export async function advanceStage(opportunityId: string, newStage: number) {
   revalidatePath('/pipeline')
   revalidatePath(`/opportunities/${opportunityId}`)
   revalidatePath('/dashboard')
+  scheduleHubPush(opportunityId)
   return { success: true }
 }
 
@@ -262,6 +265,7 @@ export async function updateOpportunity(id: string, updates: Record<string, unkn
   revalidatePath('/pipeline')
   revalidatePath(`/opportunities/${id}`)
   revalidatePath('/dashboard')
+  scheduleHubPush(id)
   return { success: true }
 }
 
@@ -288,6 +292,7 @@ export async function reopenOpportunity(id: string) {
   revalidatePath('/pipeline')
   revalidatePath(`/opportunities/${id}`)
   revalidatePath('/dashboard')
+  scheduleHubPush(id)
   return { success: true }
 }
 
@@ -314,6 +319,7 @@ export async function disqualifyOpportunity(id: string, reason: Disqualification
   revalidatePath('/pipeline')
   revalidatePath(`/opportunities/${id}`)
   revalidatePath('/dashboard')
+  scheduleHubPush(id)
   return { success: true }
 }
 
@@ -341,6 +347,7 @@ export async function markWonLost(id: string, outcome: 'won' | 'lost', notes?: s
   revalidatePath('/pipeline')
   revalidatePath(`/opportunities/${id}`)
   revalidatePath('/dashboard')
+  scheduleHubPush(id)
   return { success: true }
 }
 
@@ -423,6 +430,7 @@ export async function clearStalled(opportunityId: string) {
   revalidatePath(`/opportunities/${opportunityId}`)
   revalidatePath('/pipeline')
   revalidatePath('/dashboard')
+  scheduleHubPush(opportunityId)
   return { success: true }
 }
 
@@ -500,6 +508,7 @@ export async function setBlocker(opportunityId: string, blocker: BlockerKey, not
   revalidatePath(`/opportunities/${opportunityId}`)
   revalidatePath('/pipeline')
   revalidatePath('/dashboard')
+  scheduleHubPush(opportunityId)
   return { success: true, label }
 }
 
@@ -621,6 +630,7 @@ export async function updateNextAction(
   revalidatePath(`/opportunities/${opportunityId}`)
   revalidatePath('/pipeline')
   revalidatePath('/calendar')
+  scheduleHubPush(opportunityId)
   return { success: true }
 }
 
